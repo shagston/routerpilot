@@ -11,6 +11,7 @@ import (
 	eventbus "github.com/shagston/routerpilot/internal/events"
 	"github.com/shagston/routerpilot/internal/network"
 	"github.com/shagston/routerpilot/internal/planner"
+	pluginloader "github.com/shagston/routerpilot/internal/plugin"
 	"github.com/shagston/routerpilot/internal/registry"
 	runtimeengine "github.com/shagston/routerpilot/internal/runtime"
 	"github.com/shagston/routerpilot/internal/safety"
@@ -57,6 +58,15 @@ func New() (*App, error) {
 	bus := eventbus.NewBus()
 	validateCfg := parsePermissionsConfig()
 	engine := runtimeengine.NewEngine(reg, bus, runtimeengine.WithValidator(safety.NewValidator(reg, validateCfg)))
+
+	plugDir := os.Getenv("ROUTERPILOT_PLUGIN_DIR")
+	if plugDir == "" {
+		plugDir = "plugins"
+	}
+	plugLoader := pluginloader.NewLoader(plugDir)
+	if err := plugLoader.LoadAll(context.Background(), reg); err != nil {
+		return nil, fmt.Errorf("plugin loading: %w", err)
+	}
 
 	return &App{
 		Registry: reg,
