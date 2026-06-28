@@ -31,6 +31,16 @@ func (p *SimplePlanner) Plan(ctx context.Context, intent planner.Intent, snapsho
 		return p.planRouteShow(intent)
 	case "route.add":
 		return p.planRouteAdd(intent)
+	case "system.info":
+		return p.planSystemInfo(intent)
+	case "system.uptime":
+		return p.planSystemUptime(intent)
+	case "system.reboot":
+		return p.planSystemReboot(intent)
+	case "dns.lookup":
+		return p.planDNSLookup(intent)
+	case "dns.status":
+		return p.planDNSStatus(intent)
 	case "diagnose":
 		return p.planDiagnose(intent)
 	default:
@@ -213,6 +223,84 @@ func (p *SimplePlanner) planRouteAdd(intent planner.Intent) (types.Plan, error) 
 			},
 		},
 		Risk: types.RiskMedium,
+	}, nil
+}
+
+func (p *SimplePlanner) planSystemInfo(intent planner.Intent) (types.Plan, error) {
+	return types.Plan{
+		ID:     types.PlanID("plan-sys-info"),
+		Intent: "Get system information",
+		Steps: []types.Task{
+			{
+				ID:   types.TaskID("sys-info"),
+				Tool: "system.info",
+			},
+		},
+		Risk: types.RiskLow,
+	}, nil
+}
+
+func (p *SimplePlanner) planSystemUptime(intent planner.Intent) (types.Plan, error) {
+	return types.Plan{
+		ID:     types.PlanID("plan-sys-uptime"),
+		Intent: "Get system uptime",
+		Steps: []types.Task{
+			{
+				ID:   types.TaskID("sys-uptime"),
+				Tool: "system.uptime",
+			},
+		},
+		Risk: types.RiskLow,
+	}, nil
+}
+
+func (p *SimplePlanner) planSystemReboot(intent planner.Intent) (types.Plan, error) {
+	return types.Plan{
+		ID:     types.PlanID("plan-sys-reboot"),
+		Intent: "Reboot system",
+		Steps: []types.Task{
+			{
+				ID:   types.TaskID("sys-reboot"),
+				Tool: "system.reboot",
+			},
+		},
+		Risk: types.RiskHigh,
+	}, nil
+}
+
+func (p *SimplePlanner) planDNSLookup(intent planner.Intent) (types.Plan, error) {
+	target, ok := intent.Arguments["target"].(string)
+	if !ok || target == "" {
+		return types.Plan{}, fmt.Errorf("dns.lookup intent requires 'target' argument")
+	}
+
+	return types.Plan{
+		ID:     types.PlanID("plan-dns-lookup"),
+		Intent: fmt.Sprintf("DNS lookup for %s", target),
+		Steps: []types.Task{
+			{
+				ID:   types.TaskID("dns-lookup"),
+				Tool: "dns.lookup",
+				Arguments: types.ToolInput{
+					"host": target,
+				},
+			},
+		},
+		Risk: types.RiskLow,
+	}, nil
+}
+
+func (p *SimplePlanner) planDNSStatus(intent planner.Intent) (types.Plan, error) {
+	return types.Plan{
+		ID:     types.PlanID("plan-dns-status"),
+		Intent: "Show DNS resolver status",
+		Steps: []types.Task{
+			{
+				ID:   types.TaskID("dns-status"),
+				Tool: "dns.status",
+			},
+		},
+		Risk: types.RiskLow,
 	}, nil
 }
 

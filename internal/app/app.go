@@ -18,7 +18,9 @@ import (
 	sdkPlanner "github.com/shagston/routerpilot/sdk/planner"
 	"github.com/shagston/routerpilot/sdk/tool"
 	"github.com/shagston/routerpilot/sdk/types"
+	dnstools "github.com/shagston/routerpilot/tools/dns"
 	networktools "github.com/shagston/routerpilot/tools/network"
+	systemtools "github.com/shagston/routerpilot/tools/system"
 )
 
 type App struct {
@@ -49,6 +51,11 @@ func New() (*App, error) {
 		networktools.IPAddressSetTool{Provider: netProv},
 		networktools.RouteGetTool{Provider: netProv},
 		networktools.RouteAddTool{Provider: netProv},
+		systemtools.InfoTool{},
+		systemtools.UptimeTool{},
+		systemtools.RebootTool{},
+		dnstools.LookupTool{},
+		dnstools.StatusTool{},
 	} {
 		if err := reg.Register(t); err != nil {
 			return nil, err
