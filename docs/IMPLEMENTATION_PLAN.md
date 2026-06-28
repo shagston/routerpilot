@@ -118,12 +118,12 @@ M10 v1.0
 
 # Current Implementation Status
 
-Last updated: 2026-06-28
+Last updated: 2026-06-29
 
 The repository currently provides a full intent-driven automation platform:
 
 ```text
-CLI / API
+CLI / REST API / WebSocket / Telegram / Web UI
    |
    v
 Intent → Planner (Simple/LLM) → Context Engine
@@ -135,7 +135,7 @@ Safety Guard (risk-based) + Safety Validator (permission-based)
 Runtime (DAG scheduler, retry, timeout, dry-run, event publishing)
    |
    v
-Tool Registry → 13 tools (network ×7, system ×3, dns ×2, wifi ×1)
+Tool Registry → 30 tools (11 categories)
    |
    v
 Linux Network Provider (JSON + text fallback for OpenWrt)
@@ -149,21 +149,32 @@ internal/api
 internal/app
 internal/context
 internal/events
+internal/logger
 internal/memory
 internal/network
 internal/planner
+internal/plugin
 internal/registry
 internal/runtime
 internal/safety
+internal/telegram
+internal/webui
 sdk/events
 sdk/memory
 sdk/planner
+sdk/plugin
 sdk/runtime
 sdk/tool
 sdk/types
+tools/bridge
+tools/dhcp
 tools/dns
+tools/firewall
 tools/network
+tools/package
+tools/service
 tools/system
+tools/vpn
 tools/wifi
 ```
 
@@ -174,10 +185,13 @@ go run .\cmd\routerpilot tools
 go run .\cmd\routerpilot ping 127.0.0.1 1 --events
 go run .\cmd\routerpilot plan <intent> [args...]
 go run .\cmd\routerpilot serve
+go run .\cmd\routerpilot telegram
 go test ./...
 ```
 
-ROUTERPILOT_PORT, ROUTERPILOT_PERMISSIONS, ROUTERPILOT_RISK, ROUTERPILOT_PLANNER env vars supported.
+Environment variables: ROUTERPILOT_PORT, ROUTERPILOT_PERMISSIONS, ROUTERPILOT_RISK,
+ROUTERPILOT_PLANNER, ROUTERPILOT_API_KEY, ROUTERPILOT_PLUGIN_DIR,
+ROUTERPILOT_TELEGRAM_TOKEN, ROUTERPILOT_LOG_FORMAT, ROUTERPILOT_LOG_LEVEL.
 
 Milestone status:
 
@@ -191,9 +205,9 @@ Milestone status:
 | M5 CLI | Implemented | `ping`, `plan`, `tools`, `serve` commands. Interactive safety confirmation for high-risk plans. |
 | M6 First Production Tool | Implemented | 13 tools: network ×7 (ping, interface, ip, route), system ×3 (info, uptime, reboot), dns ×2 (lookup, status), wifi ×1 (scan). |
 | M7 OpenWrt Integration | Implemented | `ip` text output fallback parser when `-j` flag unavailable. |
-| M8 REST API | Implemented | `GET /health`, `POST /intent`, `POST /plan`, `GET /tools`, `GET /status`, `GET /events`, `GET /events/stream`. CORS, graceful shutdown, structured JSON errors. |
+| M8 REST API | Implemented | `GET /` (Web UI), `GET /api`, `GET /health`, `POST /intent`, `POST /plan`, `GET /tools`, `GET /status`, `GET /events`, `GET /events/stream`, `GET /ws` (WebSocket). CORS, graceful shutdown, SSE, WebSocket, embedded Web UI. |
 | M9 Plugin System | Implemented | `sdk/plugin` interface, subprocess loader scanning plugin dir (`ROUTERPILOT_PLUGIN_DIR`), `dns.lookup` example plugin. |
-| M10 v1.0 | In progress | 13/30 tools, needs telemetry, docs, CI pipeline. |
+| M10 v1.0 | In progress | 30/30 tools, structured logging (slog), comprehensive README, CI pipeline. |
 
 ---
 
@@ -340,7 +354,7 @@ Simple user requests become valid Plans.
 
 Current status
 
-Implemented. `SimplePlanner` handles 14 intents (ping, interface.status, interface.set, ip.show, ip.set, route.show, route.add, diagnose, system.info, system.uptime, system.reboot, wifi.scan, dns.lookup, dns.status).
+Implemented. `SimplePlanner` handles 21 intents (ping, interface.status, interface.set, ip.show, ip.set, route.show, route.add, diagnose, system.info, system.uptime, system.reboot, system.logs, system.memory, system.disk, system.processes, wifi.scan, wifi.status, dns.lookup, dns.status, dns.flush, dhcp.leases, firewall.status, firewall.reload, network.traceroute, network.neighbors, network.connections, service.list, service.restart, package.list, vpn.status, bridge.status).
 Segment-based planner splits plans into dependency-safe execution segments.
 `HasDependencyCycle()` utility integrated into both planner validation and runtime.
 Context system (`internal/context/system.go`) gathers system state with validation, event publishing, and per-tool timeout.
@@ -425,20 +439,27 @@ End-to-end execution works.
 
 Current status
 
-13 production tools implemented:
-* `network.ping` — cross-platform ping (Windows + Linux)
-* `network.interface.status` — interface state query
-* `network.interface.set` — interface up/down
-* `network.ip.show` — IP address listing
-* `network.ip.set` — IP address assignment
-* `network.route.show` — routing table query
-* `network.route.add` — route installation
-* `system.info` — OS/kernel/hostname info
-* `system.uptime` — system uptime
-* `system.reboot` — reboot system
-* `dns.lookup` — DNS resolution
-* `dns.status` — resolver configuration
-* `wifi.scan` — Wi-Fi access point scan
+30 production tools implemented:
+
+Network (10): `ping`, `interface.status`, `interface.set`, `ip.show`, `ip.set`, `route.show`, `route.add`, `traceroute`, `neighbors`, `connections`
+
+System (7): `info`, `uptime`, `reboot`, `logs`, `memory`, `disk`, `processes`
+
+DNS (3): `lookup`, `status`, `flush`
+
+Wi-Fi (2): `scan`, `status`
+
+DHCP (1): `leases`
+
+Firewall (2): `status`, `reload`
+
+Services (2): `list`, `restart`
+
+Packages (1): `list`
+
+VPN (1): `status`
+
+Bridge (1): `status`
 
 ---
 
@@ -525,6 +546,42 @@ Current status
 Implemented. `sdk/plugin` defines `Plugin` interface and `Manifest`. `internal/plugin` provides subprocess loader
 scanning `ROUTERPILOT_PLUGIN_DIR` (default `plugins/`). Plugins are binaries responding to `plugin-manifest` and
 `execute` commands. Example: `examples/dns-plugin` implements `dns.lookup`.
+
+---
+
+# Entry Points
+
+RouterPilot provides 5 entry points to the same execution core:
+
+## CLI
+
+Commands: `tools`, `ping`, `plan`, `serve`, `telegram`.
+
+## REST API
+
+8 endpoints: `/api`, `/health`, `/intent`, `/plan`, `/tools`, `/status`, `/events`, `/events/stream`.
+
+## WebSocket
+
+`GET /ws` — raw WebSocket upgrade (zero dependencies). Send JSON `{"intent":"...","args":{}}`, receive typed responses.
+
+## Web UI
+
+Embedded SPA (`internal/webui/index.html`) served at `GET /`. Communicates via WebSocket.
+
+## Telegram Bot
+
+`routerpilot telegram` — long-polling Telegram Bot API. Commands: `/ping`, `/plan`, `/tools`, `/help`, or raw intents.
+
+---
+
+# Telemetry & Logging
+
+Structured logging via `log/slog` (Go 1.21+). Configured through:
+- `ROUTERPILOT_LOG_FORMAT` — `text` (default) or `json`
+- `ROUTERPILOT_LOG_LEVEL` — `debug`, `info`, `warn`, `error`
+
+All components use `slog` instead of `log.Printf`. Contextual fields can be attached via `logger.WithFields(ctx, ...)`.
 
 ---
 
