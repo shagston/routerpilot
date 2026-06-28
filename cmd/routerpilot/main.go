@@ -13,6 +13,7 @@ import (
 
 	"github.com/shagston/routerpilot/internal/api"
 	"github.com/shagston/routerpilot/internal/app"
+	"github.com/shagston/routerpilot/internal/telegram"
 	sdkPlanner "github.com/shagston/routerpilot/sdk/planner"
 	"github.com/shagston/routerpilot/sdk/types"
 )
@@ -41,6 +42,11 @@ func main() {
 		}
 	case "serve":
 		if err := runServe(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	case "telegram":
+		if err := runTelegram(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
@@ -225,10 +231,41 @@ func runServe() error {
 	return <-errCh
 }
 
+func runTelegram() error {
+	token := os.Getenv("ROUTERPILOT_TELEGRAM_TOKEN")
+	if token == "" {
+		return fmt.Errorf("ROUTERPILOT_TELEGRAM_TOKEN environment variable is required")
+	}
+
+	instance, err := app.New()
+	if err != nil {
+		return fmt.Errorf("failed to initialize app: %w", err)
+	}
+
+	bot := telegram.NewBot(token, instance)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	fmt.Println("RouterPilot Telegram bot starting...")
+	bot.Start(ctx)
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	<-sigCh
+
+	fmt.Println("\nStopping Telegram bot...")
+	bot.Stop()
+	return nil
+}
+
 func printUsage() {
 	fmt.Println("Usage:")
 	fmt.Println("  routerpilot tools")
 	fmt.Println("  routerpilot ping <host> [count] [--events]")
 	fmt.Println("  routerpilot plan <intent> [args...]")
 	fmt.Println("  routerpilot serve")
+	fmt.Println("  routerpilot telegram")
+	fmt.Println()
+	fmt.Println("Environment:")
+	fmt.Println("  ROUTERPILOT_TELEGRAM_TOKEN  Bot token for Telegram integration")
 }
