@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shagston/routerpilot/internal/app"
+	"github.com/shagston/routerpilot/internal/webui"
 	sdkPlanner "github.com/shagston/routerpilot/sdk/planner"
 )
 
@@ -35,7 +36,8 @@ func NewServer(a *app.App) *Server {
 
 func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", s.handleRoot)
+	mux.Handle("GET /", webui.Handler())
+	mux.HandleFunc("GET /api", s.handleRoot)
 	mux.HandleFunc("GET /health", s.handleHealth)
 	mux.HandleFunc("GET /events", s.handleEvents)
 	mux.HandleFunc("GET /events/stream", s.handleEventsStream)
@@ -43,6 +45,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /plan", s.handlePlan)
 	mux.HandleFunc("GET /tools", s.handleTools)
 	mux.HandleFunc("GET /status", s.handleStatus)
+	mux.HandleFunc("GET /ws", s.handleWebSocket)
 	return corsMiddleware(mux)
 }
 
@@ -74,13 +77,16 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 		"service": "RouterPilot",
 		"version": "0.1.0",
 		"endpoints": []string{
-			"GET  /health         - Health check",
-			"POST /intent         - Execute an intent",
-			"POST /plan           - Preview a plan without executing",
-			"GET  /tools          - List available tools",
-			"GET  /status         - Server status",
-			"GET  /events         - List execution events",
-			"GET  /events/stream  - Stream execution events (SSE)",
+			"GET  /              - Web UI",
+			"GET  /api           - API info",
+			"GET  /health        - Health check",
+			"POST /intent        - Execute an intent",
+			"POST /plan          - Preview a plan without executing",
+			"GET  /tools         - List available tools",
+			"GET  /status        - Server status",
+			"GET  /events        - List execution events",
+			"GET  /events/stream - Stream execution events (SSE)",
+			"GET  /ws            - WebSocket",
 		},
 	})
 }
