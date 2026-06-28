@@ -135,7 +135,7 @@ Safety Guard (risk-based) + Safety Validator (permission-based)
 Runtime (DAG scheduler, retry, timeout, dry-run, event publishing)
    |
    v
-Tool Registry → 7 network tools (ping, interface, ip, route)
+Tool Registry → 13 tools (network ×7, system ×3, dns ×2, wifi ×1)
    |
    v
 Linux Network Provider (JSON + text fallback for OpenWrt)
@@ -161,7 +161,10 @@ sdk/planner
 sdk/runtime
 sdk/tool
 sdk/types
+tools/dns
 tools/network
+tools/system
+tools/wifi
 ```
 
 Working commands:
@@ -184,13 +187,13 @@ Milestone status:
 | M1 Core SDK | Implemented | Public contracts for tool, runtime, planner, events, memory and shared types. |
 | M2 Runtime | Implemented | DAG execution, retries, timeouts, dry-run, event publishing. Rollback and parallel scheduling remain future work. |
 | M3 Tool Registry | Implemented | In-memory registry with registration, lookup and metadata listing. |
-| M4 Planner | Implemented | SimplePlanner handles 8 intents (ping, interface.status, interface.set, ip.show, ip.set, route.show, route.add, diagnose). LLM planner also available. Segment-based dependency-safe splitting. |
+| M4 Planner | Implemented | SimplePlanner handles 14 intents (8 core + system.info, system.uptime, system.reboot, wifi.scan, dns.lookup, dns.status). LLM planner also available. Segment-based dependency-safe splitting. |
 | M5 CLI | Implemented | `ping`, `plan`, `tools`, `serve` commands. Interactive safety confirmation for high-risk plans. |
-| M6 First Production Tool | Implemented | `network.ping` and 6 additional tools (interface, ip, route — get + set). |
+| M6 First Production Tool | Implemented | 13 tools: network ×7 (ping, interface, ip, route), system ×3 (info, uptime, reboot), dns ×2 (lookup, status), wifi ×1 (scan). |
 | M7 OpenWrt Integration | Implemented | `ip` text output fallback parser when `-j` flag unavailable. |
 | M8 REST API | Implemented | `GET /health`, `POST /intent`, `POST /plan`, `GET /tools`, `GET /status`, `GET /events`, `GET /events/stream`. CORS, graceful shutdown, structured JSON errors. |
-| M9 Plugin System | Not started | Plugin interface, loader, registry integration remain. |
-| M10 v1.0 | Not started | Requires additional tools, telemetry, docs. |
+| M9 Plugin System | Implemented | `sdk/plugin` interface, subprocess loader scanning plugin dir (`ROUTERPILOT_PLUGIN_DIR`), `dns.lookup` example plugin. |
+| M10 v1.0 | In progress | 13/30 tools, needs telemetry, docs, CI pipeline. |
 
 ---
 
@@ -337,7 +340,7 @@ Simple user requests become valid Plans.
 
 Current status
 
-Implemented. `SimplePlanner` handles 8 intents (ping, interface.status, interface.set, ip.show, ip.set, route.show, route.add, diagnose).
+Implemented. `SimplePlanner` handles 14 intents (ping, interface.status, interface.set, ip.show, ip.set, route.show, route.add, diagnose, system.info, system.uptime, system.reboot, wifi.scan, dns.lookup, dns.status).
 Segment-based planner splits plans into dependency-safe execution segments.
 `HasDependencyCycle()` utility integrated into both planner validation and runtime.
 Context system (`internal/context/system.go`) gathers system state with validation, event publishing, and per-tool timeout.
@@ -422,7 +425,7 @@ End-to-end execution works.
 
 Current status
 
-7 production tools implemented:
+13 production tools implemented:
 * `network.ping` — cross-platform ping (Windows + Linux)
 * `network.interface.status` — interface state query
 * `network.interface.set` — interface up/down
@@ -430,6 +433,12 @@ Current status
 * `network.ip.set` — IP address assignment
 * `network.route.show` — routing table query
 * `network.route.add` — route installation
+* `system.info` — OS/kernel/hostname info
+* `system.uptime` — system uptime
+* `system.reboot` — reboot system
+* `dns.lookup` — DNS resolution
+* `dns.status` — resolver configuration
+* `wifi.scan` — Wi-Fi access point scan
 
 ---
 
@@ -510,6 +519,30 @@ Deliverables
 Exit Criteria
 
 External Tool loads without modifying Runtime.
+
+Current status
+
+Implemented. `sdk/plugin` defines `Plugin` interface and `Manifest`. `internal/plugin` provides subprocess loader
+scanning `ROUTERPILOT_PLUGIN_DIR` (default `plugins/`). Plugins are binaries responding to `plugin-manifest` and
+`execute` commands. Example: `examples/dns-plugin` implements `dns.lookup`.
+
+---
+
+# Continuous Integration
+
+CI pipeline (`.github/workflows/ci.yml`):
+
+```text
+GitHub Actions
+   |
+   +-- ubuntu-latest, windows-latest
+   |      |
+   |      +-- build
+   |      +-- vet
+   |      +-- test
+```
+
+Runs on push/PR to `main`.
 
 ---
 
