@@ -1,1 +1,6 @@
-.gocache/
+*.exe
+*.test
+tmp/
+# Keep plugins dir for loading
+plugins/*.exe
+!plugins/.gitkeep
