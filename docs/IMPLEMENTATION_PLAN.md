@@ -118,40 +118,40 @@ M10 v1.0
 
 # Current Implementation Status
 
-Last updated: 2026-06-27
+Last updated: 2026-06-28
 
-The repository currently contains the first runnable vertical slice:
+The repository currently provides a full intent-driven automation platform:
 
 ```text
-CLI
-
-в†“
-
-Runtime
-
-в†“
-
-Safety Validator
-
-в†“
-
-Tool Registry
-
-в†“
-
-network.ping
-
-в†“
-
-Structured Result + Events
+CLI / API
+   |
+   v
+Intent → Planner (Simple/LLM) → Context Engine
+   |
+   v
+Safety Guard (risk-based) + Safety Validator (permission-based)
+   |
+   v
+Runtime (DAG scheduler, retry, timeout, dry-run, event publishing)
+   |
+   v
+Tool Registry → 7 network tools (ping, interface, ip, route)
+   |
+   v
+Linux Network Provider (JSON + text fallback for OpenWrt)
 ```
 
 Implemented packages:
 
 ```text
 cmd/routerpilot
+internal/api
 internal/app
+internal/context
 internal/events
+internal/memory
+internal/network
+internal/planner
 internal/registry
 internal/runtime
 internal/safety
@@ -169,21 +169,28 @@ Working commands:
 ```powershell
 go run .\cmd\routerpilot tools
 go run .\cmd\routerpilot ping 127.0.0.1 1 --events
+go run .\cmd\routerpilot plan <intent> [args...]
+go run .\cmd\routerpilot serve
 go test ./...
 ```
+
+ROUTERPILOT_PORT, ROUTERPILOT_PERMISSIONS, ROUTERPILOT_RISK, ROUTERPILOT_PLANNER env vars supported.
 
 Milestone status:
 
 | Milestone | Status | Notes |
 | --------- | ------ | ----- |
 | M0 Documentation | In progress | Architecture handbook exists, but some README links still point to planned docs. |
-| M1 Core SDK | Implemented initial slice | Public contracts exist for tool, runtime, planner, events, memory and shared types. |
-| M2 Runtime | Implemented initial slice | Runtime executes plans, orders dependencies, handles retries/timeouts and emits events. Rollback and parallel scheduling remain future work. |
-| M3 Tool Registry | Implemented initial slice | In-memory registry supports registration, lookup and metadata listing. Metadata loading/capability resolver remain future work. |
-| M4 Planner | Not started | SDK interface exists; no planner implementation yet. |
-| M5 CLI | Implemented initial slice | CLI supports tool discovery and `network.ping` execution. |
-| M6 First Production Tool | Implemented initial slice | `network.ping` runs through the runtime and returns structured output. |
-| M7+ | Not started | OpenWrt, REST API, plugins and v1.0 scope remain future milestones. |
+| M1 Core SDK | Implemented | Public contracts for tool, runtime, planner, events, memory and shared types. |
+| M2 Runtime | Implemented | DAG execution, retries, timeouts, dry-run, event publishing. Rollback and parallel scheduling remain future work. |
+| M3 Tool Registry | Implemented | In-memory registry with registration, lookup and metadata listing. |
+| M4 Planner | Implemented | SimplePlanner handles 8 intents (ping, interface.status, interface.set, ip.show, ip.set, route.show, route.add, diagnose). LLM planner also available. Segment-based dependency-safe splitting. |
+| M5 CLI | Implemented | `ping`, `plan`, `tools`, `serve` commands. Interactive safety confirmation for high-risk plans. |
+| M6 First Production Tool | Implemented | `network.ping` and 6 additional tools (interface, ip, route — get + set). |
+| M7 OpenWrt Integration | Implemented | `ip` text output fallback parser when `-j` flag unavailable. |
+| M8 REST API | Implemented | `GET /health`, `POST /intent`, `POST /plan`, `GET /tools`, `GET /status`, `GET /events`, `GET /events/stream`. CORS, graceful shutdown, structured JSON errors. |
+| M9 Plugin System | Not started | Plugin interface, loader, registry integration remain. |
+| M10 v1.0 | Not started | Requires additional tools, telemetry, docs. |
 
 ---
 
@@ -330,7 +337,10 @@ Simple user requests become valid Plans.
 
 Current status
 
-Not started. CLI currently creates a deterministic plan directly for `network.ping`.
+Implemented. `SimplePlanner` handles 8 intents (ping, interface.status, interface.set, ip.show, ip.set, route.show, route.add, diagnose).
+Segment-based planner splits plans into dependency-safe execution segments.
+`HasDependencyCycle()` utility integrated into both planner validation and runtime.
+Context system (`internal/context/system.go`) gathers system state with validation, event publishing, and per-tool timeout.
 
 ---
 
@@ -360,7 +370,9 @@ CLI can execute a Plan through Runtime.
 
 Current status
 
-Initial slice implemented. `routerpilot ping <host> [count] [--events]` executes a plan through runtime, safety validation, registry and tool execution.
+Implemented. Commands: `ping <host> [count] [--events]`, `plan <intent> [args...]`, `tools`, `serve`.
+CLI supports interactive safety confirmation (prompts for y/N on medium+ risk plans).
+Adaptive re-planning retries up to 3 times with context from previous failures.
 
 ---
 
@@ -370,7 +382,7 @@ First Production Tool
 
 Goal
 
-Complete vertical slice.
+Complete vertical slice with multiple tools.
 
 Recommended Tool
 
@@ -410,7 +422,14 @@ End-to-end execution works.
 
 Current status
 
-Initial slice implemented with `network.ping`.
+7 production tools implemented:
+* `network.ping` — cross-platform ping (Windows + Linux)
+* `network.interface.status` — interface state query
+* `network.interface.set` — interface up/down
+* `network.ip.show` — IP address listing
+* `network.ip.set` — IP address assignment
+* `network.route.show` — routing table query
+* `network.route.add` — route installation
 
 ---
 
@@ -433,6 +452,12 @@ Exit Criteria
 
 RouterPilot runs on OpenWrt.
 
+Current status
+
+Linux network provider (`internal/network/linux.go`) implements `ip` text output fallback parsing.
+`GetInterfaceStatus`, `GetAddresses`, and `GetRoutes` try JSON mode (`ip -j`) first; if the `-j` flag is unavailable (busybox iproute2), they fall back to regex-based text parsing.
+Configuration via env vars: `ROUTERPILOT_PORT`, `ROUTERPILOT_PERMISSIONS`, `ROUTERPILOT_RISK`, `ROUTERPILOT_PLANNER`.
+
 ---
 
 # Milestone 8
@@ -446,18 +471,24 @@ Machine interface.
 Endpoints
 
 ```text
-POST /plan
-
-POST /execute
-
-GET /execution
-
-GET /events
+GET  /              API info
+GET  /health        Health check
+POST /intent        Execute an intent
+POST /plan          Preview a plan without executing
+GET  /tools         List available tools
+GET  /status        Server status
+GET  /events        List execution events
+GET  /events/stream Stream execution events (SSE)
 ```
 
 Exit Criteria
 
 CLI and API share Runtime.
+
+Current status
+
+Implemented. Server supports CORS, graceful shutdown (SIGINT/SIGTERM), structured JSON error responses.
+Configurable via `ROUTERPILOT_PORT` env var (default `:8080`).
 
 ---
 
