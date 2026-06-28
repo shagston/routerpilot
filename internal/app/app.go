@@ -18,7 +18,9 @@ import (
 	sdkPlanner "github.com/shagston/routerpilot/sdk/planner"
 	"github.com/shagston/routerpilot/sdk/tool"
 	"github.com/shagston/routerpilot/sdk/types"
+	dhcptools "github.com/shagston/routerpilot/tools/dhcp"
 	dnstools "github.com/shagston/routerpilot/tools/dns"
+	firewalltools "github.com/shagston/routerpilot/tools/firewall"
 	networktools "github.com/shagston/routerpilot/tools/network"
 	systemtools "github.com/shagston/routerpilot/tools/system"
 	wifitools "github.com/shagston/routerpilot/tools/wifi"
@@ -55,9 +57,15 @@ func New() (*App, error) {
 		systemtools.InfoTool{},
 		systemtools.UptimeTool{},
 		systemtools.RebootTool{},
+		systemtools.LogsTool{},
 		dnstools.LookupTool{},
 		dnstools.StatusTool{},
+		dnstools.FlushTool{},
 		wifitools.ScanTool{},
+		wifitools.StatusTool{},
+		dhcptools.LeasesTool{},
+		firewalltools.StatusTool{},
+		firewalltools.ReloadTool{},
 	} {
 		if err := reg.Register(t); err != nil {
 			return nil, err

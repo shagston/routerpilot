@@ -43,6 +43,18 @@ func (p *SimplePlanner) Plan(ctx context.Context, intent planner.Intent, snapsho
 		return p.planDNSLookup(intent)
 	case "dns.status":
 		return p.planDNSStatus(intent)
+	case "dns.flush":
+		return p.planDNSFlush(intent)
+	case "dhcp.leases":
+		return p.planDHCPLeases(intent)
+	case "firewall.status":
+		return p.planFirewallStatus(intent)
+	case "firewall.reload":
+		return p.planFirewallReload(intent)
+	case "system.logs":
+		return p.planSystemLogs(intent)
+	case "wifi.status":
+		return p.planWifiStatus(intent)
 	case "diagnose":
 		return p.planDiagnose(intent)
 	default:
@@ -326,6 +338,109 @@ func (p *SimplePlanner) planDNSStatus(intent planner.Intent) (types.Plan, error)
 		},
 		Risk: types.RiskLow,
 	}, nil
+}
+
+func (p *SimplePlanner) planDNSFlush(intent planner.Intent) (types.Plan, error) {
+	return types.Plan{
+		ID:     types.PlanID("plan-dns-flush"),
+		Intent: "Flush DNS cache",
+		Steps: []types.Task{
+			{
+				ID:   types.TaskID("dns-flush"),
+				Tool: "dns.flush",
+			},
+		},
+		Risk: types.RiskLow,
+	}, nil
+}
+
+func (p *SimplePlanner) planDHCPLeases(intent planner.Intent) (types.Plan, error) {
+	return types.Plan{
+		ID:     types.PlanID("plan-dhcp-leases"),
+		Intent: "List DHCP leases",
+		Steps: []types.Task{
+			{
+				ID:   types.TaskID("dhcp-leases"),
+				Tool: "dhcp.leases",
+			},
+		},
+		Risk: types.RiskLow,
+	}, nil
+}
+
+func (p *SimplePlanner) planFirewallStatus(intent planner.Intent) (types.Plan, error) {
+	return types.Plan{
+		ID:     types.PlanID("plan-fw-status"),
+		Intent: "Show firewall status",
+		Steps: []types.Task{
+			{
+				ID:   types.TaskID("fw-status"),
+				Tool: "firewall.status",
+			},
+		},
+		Risk: types.RiskLow,
+	}, nil
+}
+
+func (p *SimplePlanner) planFirewallReload(intent planner.Intent) (types.Plan, error) {
+	return types.Plan{
+		ID:     types.PlanID("plan-fw-reload"),
+		Intent: "Reload firewall",
+		Steps: []types.Task{
+			{
+				ID:   types.TaskID("fw-reload"),
+				Tool: "firewall.reload",
+			},
+		},
+		Risk: types.RiskMedium,
+	}, nil
+}
+
+func (p *SimplePlanner) planSystemLogs(intent planner.Intent) (types.Plan, error) {
+	plan := types.Plan{
+		ID:     types.PlanID("plan-sys-logs"),
+		Intent: "View system logs",
+		Steps: []types.Task{
+			{
+				ID:   types.TaskID("sys-logs"),
+				Tool: "system.logs",
+			},
+		},
+		Risk: types.RiskLow,
+	}
+
+	if lines, ok := intent.Arguments["lines"].(int); ok && lines > 0 && lines <= 500 {
+		plan.Steps[0].Arguments = types.ToolInput{"lines": lines}
+	}
+
+	if filter, ok := intent.Arguments["filter"].(string); ok && filter != "" {
+		if plan.Steps[0].Arguments == nil {
+			plan.Steps[0].Arguments = types.ToolInput{}
+		}
+		plan.Steps[0].Arguments["filter"] = filter
+	}
+
+	return plan, nil
+}
+
+func (p *SimplePlanner) planWifiStatus(intent planner.Intent) (types.Plan, error) {
+	plan := types.Plan{
+		ID:     types.PlanID("plan-wifi-status"),
+		Intent: "Wi-Fi interface status",
+		Steps: []types.Task{
+			{
+				ID:   types.TaskID("wifi-status"),
+				Tool: "wifi.status",
+			},
+		},
+		Risk: types.RiskLow,
+	}
+
+	if iface, ok := intent.Arguments["interface"].(string); ok && iface != "" {
+		plan.Steps[0].Arguments = types.ToolInput{"interface": iface}
+	}
+
+	return plan, nil
 }
 
 func (p *SimplePlanner) planDiagnose(intent planner.Intent) (types.Plan, error) {

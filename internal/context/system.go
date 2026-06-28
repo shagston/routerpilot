@@ -34,9 +34,15 @@ var intentDependencies = map[string][]types.ToolID{
 	"system.info":      {"system.info"},
 	"system.uptime":    {"system.uptime"},
 	"system.reboot":    {"system.info"},
+	"system.logs":      {"system.logs"},
 	"wifi.scan":        {"wifi.scan"},
+	"wifi.status":      {"wifi.status"},
 	"dns.lookup":       {"dns.lookup", "dns.status"},
 	"dns.status":       {"dns.status"},
+	"dns.flush":        {"dns.status"},
+	"dhcp.leases":      {"dhcp.leases"},
+	"firewall.status":  {"firewall.status"},
+	"firewall.reload":  {"firewall.status"},
 	"diagnose":         {"network.interface_status", "network.ip_address_get", "network.route_get"},
 }
 
