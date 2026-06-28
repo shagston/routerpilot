@@ -53,8 +53,30 @@ func (p *SimplePlanner) Plan(ctx context.Context, intent planner.Intent, snapsho
 		return p.planFirewallReload(intent)
 	case "system.logs":
 		return p.planSystemLogs(intent)
+	case "system.memory":
+		return p.planSystemMemory(intent)
+	case "system.disk":
+		return p.planSystemDisk(intent)
+	case "system.processes":
+		return p.planSystemProcesses(intent)
 	case "wifi.status":
 		return p.planWifiStatus(intent)
+	case "network.traceroute":
+		return p.planTraceroute(intent)
+	case "network.neighbors":
+		return p.planNeighbors(intent)
+	case "network.connections":
+		return p.planConnections(intent)
+	case "service.list":
+		return p.planServiceList(intent)
+	case "service.restart":
+		return p.planServiceRestart(intent)
+	case "package.list":
+		return p.planPackageList(intent)
+	case "vpn.status":
+		return p.planVPNStatus(intent)
+	case "bridge.status":
+		return p.planBridgeStatus(intent)
 	case "diagnose":
 		return p.planDiagnose(intent)
 	default:
@@ -441,6 +463,117 @@ func (p *SimplePlanner) planWifiStatus(intent planner.Intent) (types.Plan, error
 	}
 
 	return plan, nil
+}
+
+func (p *SimplePlanner) planSystemMemory(intent planner.Intent) (types.Plan, error) {
+	return types.Plan{
+		ID:     types.PlanID("plan-sys-mem"),
+		Intent: "Show memory usage",
+		Steps:  []types.Task{{ID: types.TaskID("sys-mem"), Tool: "system.memory"}},
+		Risk:   types.RiskLow,
+	}, nil
+}
+
+func (p *SimplePlanner) planSystemDisk(intent planner.Intent) (types.Plan, error) {
+	return types.Plan{
+		ID:     types.PlanID("plan-sys-disk"),
+		Intent: "Show disk usage",
+		Steps:  []types.Task{{ID: types.TaskID("sys-disk"), Tool: "system.disk"}},
+		Risk:   types.RiskLow,
+	}, nil
+}
+
+func (p *SimplePlanner) planSystemProcesses(intent planner.Intent) (types.Plan, error) {
+	plan := types.Plan{
+		ID:     types.PlanID("plan-sys-procs"),
+		Intent: "List processes",
+		Steps:  []types.Task{{ID: types.TaskID("sys-procs"), Tool: "system.processes"}},
+		Risk:   types.RiskLow,
+	}
+	if sort, ok := intent.Arguments["sort"].(string); ok && sort != "" {
+		plan.Steps[0].Arguments = types.ToolInput{"sort": sort}
+	}
+	return plan, nil
+}
+
+func (p *SimplePlanner) planTraceroute(intent planner.Intent) (types.Plan, error) {
+	target, ok := intent.Arguments["target"].(string)
+	if !ok || target == "" {
+		return types.Plan{}, fmt.Errorf("traceroute intent requires 'target' argument")
+	}
+	return types.Plan{
+		ID:     types.PlanID("plan-traceroute"),
+		Intent: fmt.Sprintf("Trace route to %s", target),
+		Steps:  []types.Task{{ID: types.TaskID("traceroute"), Tool: "network.traceroute", Arguments: types.ToolInput{"host": target}}},
+		Risk:   types.RiskLow,
+	}, nil
+}
+
+func (p *SimplePlanner) planNeighbors(intent planner.Intent) (types.Plan, error) {
+	return types.Plan{
+		ID:     types.PlanID("plan-neighbors"),
+		Intent: "Show ARP/neighbor table",
+		Steps:  []types.Task{{ID: types.TaskID("neighbors"), Tool: "network.neighbors"}},
+		Risk:   types.RiskLow,
+	}, nil
+}
+
+func (p *SimplePlanner) planConnections(intent planner.Intent) (types.Plan, error) {
+	return types.Plan{
+		ID:     types.PlanID("plan-connections"),
+		Intent: "Show active connections",
+		Steps:  []types.Task{{ID: types.TaskID("connections"), Tool: "network.connections"}},
+		Risk:   types.RiskLow,
+	}, nil
+}
+
+func (p *SimplePlanner) planServiceList(intent planner.Intent) (types.Plan, error) {
+	return types.Plan{
+		ID:     types.PlanID("plan-svc-list"),
+		Intent: "List services",
+		Steps:  []types.Task{{ID: types.TaskID("svc-list"), Tool: "service.list"}},
+		Risk:   types.RiskLow,
+	}, nil
+}
+
+func (p *SimplePlanner) planServiceRestart(intent planner.Intent) (types.Plan, error) {
+	name, ok := intent.Arguments["name"].(string)
+	if !ok || name == "" {
+		return types.Plan{}, fmt.Errorf("service.restart intent requires 'name' argument")
+	}
+	return types.Plan{
+		ID:     types.PlanID("plan-svc-restart"),
+		Intent: fmt.Sprintf("Restart service %s", name),
+		Steps:  []types.Task{{ID: types.TaskID("svc-restart"), Tool: "service.restart", Arguments: types.ToolInput{"name": name}}},
+		Risk:   types.RiskMedium,
+	}, nil
+}
+
+func (p *SimplePlanner) planPackageList(intent planner.Intent) (types.Plan, error) {
+	return types.Plan{
+		ID:     types.PlanID("plan-pkg-list"),
+		Intent: "List packages",
+		Steps:  []types.Task{{ID: types.TaskID("pkg-list"), Tool: "package.list"}},
+		Risk:   types.RiskLow,
+	}, nil
+}
+
+func (p *SimplePlanner) planVPNStatus(intent planner.Intent) (types.Plan, error) {
+	return types.Plan{
+		ID:     types.PlanID("plan-vpn-status"),
+		Intent: "Show VPN status",
+		Steps:  []types.Task{{ID: types.TaskID("vpn-status"), Tool: "vpn.status"}},
+		Risk:   types.RiskLow,
+	}, nil
+}
+
+func (p *SimplePlanner) planBridgeStatus(intent planner.Intent) (types.Plan, error) {
+	return types.Plan{
+		ID:     types.PlanID("plan-bridge-status"),
+		Intent: "Show bridge status",
+		Steps:  []types.Task{{ID: types.TaskID("bridge-status"), Tool: "bridge.status"}},
+		Risk:   types.RiskLow,
+	}, nil
 }
 
 func (p *SimplePlanner) planDiagnose(intent planner.Intent) (types.Plan, error) {

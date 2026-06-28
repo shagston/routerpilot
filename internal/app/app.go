@@ -18,11 +18,15 @@ import (
 	sdkPlanner "github.com/shagston/routerpilot/sdk/planner"
 	"github.com/shagston/routerpilot/sdk/tool"
 	"github.com/shagston/routerpilot/sdk/types"
+	bridgeTools "github.com/shagston/routerpilot/tools/bridge"
 	dhcptools "github.com/shagston/routerpilot/tools/dhcp"
 	dnstools "github.com/shagston/routerpilot/tools/dns"
 	firewalltools "github.com/shagston/routerpilot/tools/firewall"
 	networktools "github.com/shagston/routerpilot/tools/network"
+	packagetools "github.com/shagston/routerpilot/tools/package"
+	servicetools "github.com/shagston/routerpilot/tools/service"
 	systemtools "github.com/shagston/routerpilot/tools/system"
+	vpntools "github.com/shagston/routerpilot/tools/vpn"
 	wifitools "github.com/shagston/routerpilot/tools/wifi"
 )
 
@@ -54,10 +58,16 @@ func New() (*App, error) {
 		networktools.IPAddressSetTool{Provider: netProv},
 		networktools.RouteGetTool{Provider: netProv},
 		networktools.RouteAddTool{Provider: netProv},
+		networktools.TracerouteTool{},
+		networktools.NeighborsTool{},
+		networktools.ConnectionsTool{},
 		systemtools.InfoTool{},
 		systemtools.UptimeTool{},
 		systemtools.RebootTool{},
 		systemtools.LogsTool{},
+		systemtools.MemoryTool{},
+		systemtools.DiskTool{},
+		systemtools.ProcessesTool{},
 		dnstools.LookupTool{},
 		dnstools.StatusTool{},
 		dnstools.FlushTool{},
@@ -66,6 +76,11 @@ func New() (*App, error) {
 		dhcptools.LeasesTool{},
 		firewalltools.StatusTool{},
 		firewalltools.ReloadTool{},
+		servicetools.ListTool{},
+		servicetools.RestartTool{},
+		packagetools.ListTool{},
+		vpntools.StatusTool{},
+		bridgeTools.StatusTool{},
 	} {
 		if err := reg.Register(t); err != nil {
 			return nil, err
