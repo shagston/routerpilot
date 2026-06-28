@@ -24,9 +24,14 @@ var defaultDiscoveryTools = []types.ToolID{
 }
 
 var intentDependencies = map[string][]types.ToolID{
-	"ping":           {"network.interface_status"},
-	"interface.set":  {"network.interface_status"},
-	"routing.update": {"network.interface_status", "network.ping"},
+	"ping":             {"network.interface_status"},
+	"interface.status": {"network.interface_status"},
+	"interface.set":    {"network.interface_status"},
+	"ip.show":          {"network.ip_address_get"},
+	"ip.set":           {"network.ip_address_get"},
+	"route.show":       {"network.route_get"},
+	"route.add":        {"network.route_get"},
+	"diagnose":         {"network.interface_status", "network.ip_address_get", "network.route_get"},
 }
 
 const contextToolTimeout = 10 * time.Second

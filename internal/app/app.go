@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	ctxengine "github.com/shagston/routerpilot/internal/context"
@@ -53,9 +55,8 @@ func New() (*App, error) {
 	}
 
 	bus := eventbus.NewBus()
-	engine := runtimeengine.NewEngine(reg, bus, runtimeengine.WithValidator(safety.NewValidator(reg, safety.Config{
-		Permissions: []types.Permission{types.PermissionRead},
-	})))
+	validateCfg := parsePermissionsConfig()
+	engine := runtimeengine.NewEngine(reg, bus, runtimeengine.WithValidator(safety.NewValidator(reg, validateCfg)))
 
 	return &App{
 		Registry: reg,
@@ -71,7 +72,7 @@ func (a *App) ExecuteIntent(ctx context.Context, intent sdkPlanner.Intent, inter
 	})
 
 	ctxProvider := ctxengine.NewSystemContextProvider(a.Registry, a.Events)
-	guard := safety.NewSimpleSafetyGuard(types.RiskLow)
+	guard := safety.NewSimpleSafetyGuard(parseRiskLevel())
 	planGen := planner.SelectPlanner(a.Registry)
 
 	const maxAttempts = 3
@@ -152,10 +153,69 @@ func (a *App) publishEvent(eventType types.EventType, severity types.Severity, p
 	})
 }
 
+func (a *App) PreviewPlan(ctx context.Context, intent sdkPlanner.Intent) (types.ContextSnapshot, types.Plan, error) {
+	ctxProvider := ctxengine.NewSystemContextProvider(a.Registry, a.Events)
+	planGen := planner.SelectPlanner(a.Registry)
+
+	snapshot, err := ctxProvider.Build(ctx, intent)
+	if err != nil {
+		return nil, types.Plan{}, fmt.Errorf("context build failed: %w", err)
+	}
+
+	plan, err := planGen.Plan(ctx, intent, snapshot)
+	if err != nil {
+		return nil, types.Plan{}, fmt.Errorf("planning failed: %w", err)
+	}
+
+	return snapshot, plan, nil
+}
+
 func snapshotKeys(snapshot types.ContextSnapshot) []string {
 	keys := make([]string, 0, len(snapshot))
 	for key := range snapshot {
 		keys = append(keys, key)
 	}
 	return keys
+}
+
+func parsePermissionsConfig() safety.Config {
+	permMap := map[string]types.Permission{
+		"read":  types.PermissionRead,
+		"write": types.PermissionWrite,
+		"admin": types.PermissionAdmin,
+	}
+
+	raw := os.Getenv("ROUTERPILOT_PERMISSIONS")
+	if raw == "" {
+		return safety.Config{
+			Permissions: []types.Permission{types.PermissionRead, types.PermissionWrite},
+		}
+	}
+
+	var perms []types.Permission
+	for _, p := range strings.Split(raw, ",") {
+		p = strings.TrimSpace(strings.ToLower(p))
+		if perm, ok := permMap[p]; ok {
+			perms = append(perms, perm)
+		}
+	}
+	if len(perms) == 0 {
+		perms = []types.Permission{types.PermissionRead, types.PermissionWrite}
+	}
+	return safety.Config{Permissions: perms}
+}
+
+func parseRiskLevel() types.RiskLevel {
+	switch strings.ToLower(os.Getenv("ROUTERPILOT_RISK")) {
+	case "low":
+		return types.RiskLow
+	case "medium":
+		return types.RiskMedium
+	case "high":
+		return types.RiskHigh
+	case "critical":
+		return types.RiskCritical
+	default:
+		return types.RiskLow
+	}
 }

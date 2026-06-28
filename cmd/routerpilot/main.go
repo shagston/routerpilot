@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/shagston/routerpilot/internal/api"
@@ -193,18 +194,35 @@ func runServe() error {
 		return fmt.Errorf("failed to initialize app: %w", err)
 	}
 
-	server := api.NewServer(instance)
-	port := ":8080"
+	srv := api.NewServer(instance)
+	port := os.Getenv("ROUTERPILOT_PORT")
+	if port == "" {
+		port = ":8080"
+	} else if port[0] != ':' {
+		port = ":" + port
+	}
 
 	fmt.Printf("RouterPilot API server starting on %s...\n", port)
-	fmt.Println("Endpoints:")
-	fmt.Println("  POST /intent         - Execute an intent")
-	fmt.Println("  GET  /tools          - List available tools")
-	fmt.Println("  GET  /status         - Check server status")
-	fmt.Println("  GET  /events         - List execution events")
-	fmt.Println("  GET  /events/stream  - Stream execution events (SSE)")
 
-	return http.ListenAndServe(port, server.Routes())
+	// Channel to capture serve error (non-nil means unexpected shutdown)
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- srv.Serve(port)
+	}()
+
+	// Wait for interrupt
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	<-sigCh
+
+	fmt.Println("\nShutting down gracefully...")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		return fmt.Errorf("shutdown error: %w", err)
+	}
+	return <-errCh
 }
 
 func printUsage() {

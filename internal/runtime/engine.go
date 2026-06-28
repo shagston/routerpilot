@@ -247,9 +247,9 @@ func (e *Engine) executeTask(ctx context.Context, execution types.Execution, tas
 		}
 		if task.Retry.Delay > 0 {
 			timer := time.NewTimer(task.Retry.Delay)
+			defer timer.Stop()
 			select {
 			case <-ctx.Done():
-				timer.Stop()
 				return types.ToolResult{Success: false, Error: ctx.Err().Error()}, ctx.Err()
 			case <-timer.C:
 			}
