@@ -21,6 +21,7 @@ import (
 	dnstools "github.com/shagston/routerpilot/tools/dns"
 	networktools "github.com/shagston/routerpilot/tools/network"
 	systemtools "github.com/shagston/routerpilot/tools/system"
+	wifitools "github.com/shagston/routerpilot/tools/wifi"
 )
 
 type App struct {
@@ -56,6 +57,7 @@ func New() (*App, error) {
 		systemtools.RebootTool{},
 		dnstools.LookupTool{},
 		dnstools.StatusTool{},
+		wifitools.ScanTool{},
 	} {
 		if err := reg.Register(t); err != nil {
 			return nil, err

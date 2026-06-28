@@ -37,6 +37,8 @@ func (p *SimplePlanner) Plan(ctx context.Context, intent planner.Intent, snapsho
 		return p.planSystemUptime(intent)
 	case "system.reboot":
 		return p.planSystemReboot(intent)
+	case "wifi.scan":
+		return p.planWifiScan(intent)
 	case "dns.lookup":
 		return p.planDNSLookup(intent)
 	case "dns.status":
@@ -252,6 +254,28 @@ func (p *SimplePlanner) planSystemUptime(intent planner.Intent) (types.Plan, err
 		},
 		Risk: types.RiskLow,
 	}, nil
+}
+
+func (p *SimplePlanner) planWifiScan(intent planner.Intent) (types.Plan, error) {
+	plan := types.Plan{
+		ID:     types.PlanID("plan-wifi-scan"),
+		Intent: "Wi-Fi scan",
+		Steps: []types.Task{
+			{
+				ID:   types.TaskID("wifi-scan"),
+				Tool: "wifi.scan",
+			},
+		},
+		Risk: types.RiskLow,
+	}
+
+	if iface, ok := intent.Arguments["interface"].(string); ok && iface != "" {
+		plan.Steps[0].Arguments = types.ToolInput{
+			"interface": iface,
+		}
+	}
+
+	return plan, nil
 }
 
 func (p *SimplePlanner) planSystemReboot(intent planner.Intent) (types.Plan, error) {
