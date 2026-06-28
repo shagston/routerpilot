@@ -10,7 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
@@ -49,7 +49,7 @@ type wsCmd struct {
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgradeToWS(w, r)
 	if err != nil {
-		log.Printf("websocket upgrade failed: %v", err)
+		slog.Warn("websocket upgrade failed", "error", err)
 		return
 	}
 
@@ -147,7 +147,7 @@ func (c *WSClient) readPump(ctx context.Context) {
 		msgType, payload, err := readFrame(c.conn)
 		if err != nil {
 			if !errors.Is(err, io.EOF) && !strings.Contains(err.Error(), "use of closed") {
-				log.Printf("websocket read error: %v", err)
+				slog.Debug("websocket read error", "error", err)
 			}
 			return
 		}
@@ -212,7 +212,7 @@ func (c *WSClient) writePump(ctx context.Context) {
 func (c *WSClient) sendJSON(v any) {
 	data, err := json.Marshal(v)
 	if err != nil {
-		log.Printf("json marshal error: %v", err)
+		slog.Error("json marshal error", "error", err)
 		return
 	}
 
@@ -225,7 +225,7 @@ func (c *WSClient) sendJSON(v any) {
 
 	c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 	if err := writeFrame(c.conn, opText, data); err != nil {
-		log.Printf("websocket write error: %v", err)
+		slog.Error("websocket write error", "error", err)
 		c.closed = true
 	}
 }

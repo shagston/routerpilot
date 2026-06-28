@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -111,7 +111,7 @@ func (b *Bot) poll(ctx context.Context) {
 
 	updates, err := b.getUpdates(ctx, params)
 	if err != nil {
-		log.Printf("telegram poll error: %v", err)
+		slog.Error("telegram poll error", "error", err)
 		return
 	}
 
@@ -213,7 +213,7 @@ func (b *Bot) handleMessage(ctx context.Context, msg *Message) {
 	}
 
 	if err := b.SendMessage(msg.Chat.ID, reply); err != nil {
-		log.Printf("telegram send error: %v", err)
+		slog.Error("telegram send error", "error", err)
 	}
 }
 

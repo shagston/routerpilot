@@ -3,12 +3,14 @@ package app
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
 
 	ctxengine "github.com/shagston/routerpilot/internal/context"
 	eventbus "github.com/shagston/routerpilot/internal/events"
+	"github.com/shagston/routerpilot/internal/logger"
 	"github.com/shagston/routerpilot/internal/network"
 	"github.com/shagston/routerpilot/internal/planner"
 	pluginloader "github.com/shagston/routerpilot/internal/plugin"
@@ -34,6 +36,7 @@ type App struct {
 	Registry *registry.ToolRegistry
 	Events   *eventbus.Bus
 	Runtime  *runtimeengine.Engine
+	Log      *logger.Logger
 }
 
 type SafetyError struct {
@@ -46,6 +49,7 @@ func (e *SafetyError) Error() string {
 }
 
 func New() (*App, error) {
+	log := logger.New()
 	reg := registry.NewToolRegistry()
 
 	netProv := network.NewLinuxProvider()
@@ -100,10 +104,16 @@ func New() (*App, error) {
 		return nil, fmt.Errorf("plugin loading: %w", err)
 	}
 
+	log.Info("RouterPilot initialized",
+		slog.Int("tools", len(reg.List())),
+		slog.String("plugins_dir", plugDir),
+	)
+
 	return &App{
 		Registry: reg,
 		Events:   bus,
 		Runtime:  engine,
+		Log:      log,
 	}, nil
 }
 
