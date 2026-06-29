@@ -135,7 +135,7 @@ Safety Guard (risk-based) + Safety Validator (permission-based)
 Runtime (DAG scheduler, retry, timeout, dry-run, event publishing)
    |
    v
-Tool Registry → 30 tools (11 categories)
+Tool Registry → 33 tools (11 categories)
    |
    v
 Linux Network Provider (JSON + text fallback for OpenWrt)
@@ -207,7 +207,7 @@ Milestone status:
 | M7 OpenWrt Integration | Implemented | `ip` text output fallback parser when `-j` flag unavailable. |
 | M8 REST API | Implemented | `GET /` (Web UI), `GET /api`, `GET /health`, `POST /intent`, `POST /plan`, `GET /tools`, `GET /status`, `GET /events`, `GET /events/stream`, `GET /ws` (WebSocket). CORS, graceful shutdown, SSE, WebSocket, embedded Web UI. |
 | M9 Plugin System | Implemented | `sdk/plugin` interface, subprocess loader scanning plugin dir (`ROUTERPILOT_PLUGIN_DIR`), `dns.lookup` example plugin. |
-| M10 v1.0 | In progress | 30/30 tools, structured logging (slog), comprehensive README, CI pipeline. |
+| M10 v1.0 | In progress | 33/33 tools, structured logging (slog), comprehensive README, CI pipeline. |
 
 ---
 
@@ -439,15 +439,15 @@ End-to-end execution works.
 
 Current status
 
-30 production tools implemented:
+33 production tools implemented:
 
-Network (10): `ping`, `interface.status`, `interface.set`, `ip.show`, `ip.set`, `route.show`, `route.add`, `traceroute`, `neighbors`, `connections`
+Network (11): `ping`, `interface.status`, `interface.set`, `ip.show`, `ip.set`, `route.show`, `route.add`, `traceroute`, `neighbors`, `connections`, `bandwidth`
 
 System (7): `info`, `uptime`, `reboot`, `logs`, `memory`, `disk`, `processes`
 
 DNS (3): `lookup`, `status`, `flush`
 
-Wi-Fi (2): `scan`, `status`
+Wi-Fi (3): `scan`, `status`, `connect`
 
 DHCP (1): `leases`
 

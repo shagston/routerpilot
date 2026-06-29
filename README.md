@@ -71,7 +71,7 @@ CLI / API / WebSocket / Telegram / Web UI
 
 ---
 
-## 30 Tools
+## 33 Tools
 
 ### Network Diagnostics
 
@@ -81,6 +81,7 @@ CLI / API / WebSocket / Telegram / Web UI
 | `network.traceroute` | Trace network path | `routerpilot plan network.traceroute target=google.com` |
 | `network.neighbors` | ARP/neighbor table (`ip neigh`) | `routerpilot plan network.neighbors` |
 | `network.connections` | Active sockets (`ss -tuln`) | `routerpilot plan network.connections` |
+| `network.bandwidth` | Measure throughput (iperf3/curl) | `routerpilot plan network.bandwidth target=10.0.0.1` |
 
 ### Interface Management
 
@@ -124,6 +125,7 @@ CLI / API / WebSocket / Telegram / Web UI
 |------|-------------|---------|
 | `wifi.scan` | Scan for access points | `routerpilot plan wifi.scan` |
 | `wifi.status` | Wi-Fi interface status | `routerpilot plan wifi.status` |
+| `wifi.connect` | Connect to a Wi-Fi network | `routerpilot plan wifi.connect ssid=MyNet password=secret` |
 
 ### DHCP
 
@@ -168,6 +170,7 @@ CLI / API / WebSocket / Telegram / Web UI
 | Tool | Description | Example |
 |------|-------------|---------|
 | `diagnose` | Full network diagnostic (if+ip+route+ping) | `routerpilot plan diagnose target=8.8.8.8` |
+| `suggest` | Offline diagnosis with KB pattern matching | `routerpilot plan suggest problem="no internet"` |
 
 ---
 
