@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/shagston/routerpilot/internal/app"
+	"github.com/shagston/routerpilot/internal/config"
 	"github.com/shagston/routerpilot/internal/webui"
 	sdkPlanner "github.com/shagston/routerpilot/sdk/planner"
 )
@@ -45,6 +47,8 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /plan", s.handlePlan)
 	mux.HandleFunc("GET /tools", s.handleTools)
 	mux.HandleFunc("GET /status", s.handleStatus)
+	mux.HandleFunc("GET /api/config", s.handleConfigGet)
+	mux.HandleFunc("PUT /api/config", s.handleConfigPut)
 	mux.HandleFunc("GET /ws", s.handleWebSocket)
 	return corsMiddleware(mux)
 }
@@ -178,6 +182,67 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"tools_cnt": len(s.App.Registry.List()),
 		"timestamp": time.Now().Format(time.RFC3339),
 	})
+}
+
+func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, s.App.Config)
+}
+
+func (s *Server) handleConfigPut(w http.ResponseWriter, r *http.Request) {
+	var incoming config.Config
+	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid JSON")
+		return
+	}
+
+	// Merge non-zero values into current config
+	cfg := s.App.Config
+	if v := incoming.Server.Port; v != "" {
+		cfg.Server.Port = v
+	}
+	if v := incoming.Server.Host; v != "" {
+		cfg.Server.Host = v
+	}
+	if v := incoming.Planner.Type; v != "" {
+		cfg.Planner.Type = v
+	}
+	if v := incoming.Planner.APIKey; v != "" {
+		cfg.Planner.APIKey = v
+	}
+	if v := incoming.Planner.Endpoint; v != "" {
+		cfg.Planner.Endpoint = v
+	}
+	if v := incoming.Planner.Model; v != "" {
+		cfg.Planner.Model = v
+	}
+	if v := incoming.Logging.Level; v != "" {
+		cfg.Logging.Level = v
+	}
+	if v := incoming.Logging.Format; v != "" {
+		cfg.Logging.Format = v
+	}
+	if v := incoming.Telegram.Token; v != "" {
+		cfg.Telegram.Token = v
+	}
+	if v := incoming.Security.Risk; v != "" {
+		cfg.Security.Risk = v
+	}
+	if len(incoming.Security.Permissions) > 0 {
+		cfg.Security.Permissions = incoming.Security.Permissions
+	}
+	cfg.Security.ReadOnly = incoming.Security.ReadOnly
+	cfg.Security.DryRun = incoming.Security.DryRun
+	if v := incoming.System.PluginDir; v != "" {
+		cfg.System.PluginDir = v
+	}
+
+	// Persist to routerpilot.json (best effort)
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err == nil {
+		_ = os.WriteFile("routerpilot.json", data, 0644)
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "config": cfg})
 }
 
 func (s *Server) Serve(addr string) error {

@@ -7,18 +7,17 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d1117;color:#c9d1d9;height:100vh;display:flex;flex-direction:column}
-header{background:#161b22;padding:12px 20px;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:12px}
+header{background:#161b22;padding:12px 20px;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:12px;flex-shrink:0}
 header h1{font-size:18px;font-weight:600;color:#58a6ff}
-header span{color:#8b949e;font-size:14px}
 #status-dot{width:8px;height:8px;border-radius:50%;background:#3fb950;display:inline-block}
 #status-dot.disconnected{background:#f85149}
-.container{display:flex;flex:1;overflow:hidden}
-.sidebar{width:280px;background:#161b22;border-right:1px solid #30363d;padding:16px;display:flex;flex-direction:column;gap:8px}
-.sidebar h3{font-size:12px;text-transform:uppercase;color:#8b949e;letter-spacing:.5px}
-.sidebar .cmd{font-size:13px;padding:6px 10px;border-radius:6px;cursor:pointer;color:#c9d1d9;background:#21262d;border:1px solid #30363d}
-.sidebar .cmd:hover{background:#30363d;border-color:#58a6ff}
-.main{flex:1;display:flex;flex-direction:column;padding:16px;gap:12px}
-.input-row{display:flex;gap:8px}
+.tabs{display:flex;gap:0;background:#161b22;border-bottom:1px solid #30363d;padding:0 20px;flex-shrink:0}
+.tab{padding:10px 20px;cursor:pointer;color:#8b949e;border-bottom:2px solid transparent;font-size:14px}
+.tab:hover{color:#c9d1d9}
+.tab.active{color:#58a6ff;border-bottom-color:#58a6ff}
+.panel{flex:1;display:none;overflow:auto;padding:16px}
+.panel.active{display:flex;flex-direction:column}
+.input-row{display:flex;gap:8px;flex-shrink:0}
 #cmd-input{flex:1;padding:10px 14px;border-radius:8px;border:1px solid #30363d;background:#0d1117;color:#c9d1d9;font-size:14px;font-family:monospace}
 #cmd-input:focus{outline:none;border-color:#58a6ff}
 #send-btn{padding:10px 20px;border-radius:8px;border:none;background:#238636;color:#fff;font-size:14px;cursor:pointer}
@@ -30,15 +29,50 @@ header span{color:#8b949e;font-size:14px}
 .entry.error{color:#f85149;background:#290f0f}
 .entry .label{font-weight:600;margin-right:8px}
 .entry .timestamp{color:#484f58;font-size:11px;margin-right:8px}
+.sidebar{width:220px;background:#161b22;border-right:1px solid #30363d;padding:12px;display:flex;flex-direction:column;gap:4px;flex-shrink:0;overflow-y:auto}
+.sidebar h3{font-size:11px;text-transform:uppercase;color:#8b949e;letter-spacing:.5px;margin:8px 0 4px}
+.sidebar .cmd{font-size:12px;padding:4px 8px;border-radius:4px;cursor:pointer;color:#c9d1d9;background:#21262d;border:1px solid #30363d}
+.sidebar .cmd:hover{background:#30363d;border-color:#58a6ff}
+.console-wrap{display:flex;flex:1;overflow:hidden}
+#dashboard-panel{display:flex;flex-direction:column;gap:12px}
+.card{background:#161b22;border-radius:8px;border:1px solid #30363d;padding:16px}
+.card h3{font-size:14px;color:#58a6ff;margin-bottom:8px}
+.card table{width:100%;border-collapse:collapse;font-size:13px}
+.card th{text-align:left;color:#8b949e;font-weight:600;padding:6px 8px;border-bottom:1px solid #30363d}
+.card td{padding:6px 8px;border-bottom:1px solid #21262d}
+.card .ok{color:#3fb950}
+.card .warn{color:#d29922}
+.card .err{color:#f85149}
+.settings-form{display:flex;flex-direction:column;gap:16px;max-width:600px}
+.settings-group{background:#161b22;border-radius:8px;border:1px solid #30363d;padding:16px}
+.settings-group h3{font-size:14px;color:#58a6ff;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #30363d}
+.field-row{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.field-row label{width:140px;font-size:13px;color:#c9d1d9;flex-shrink:0}
+.field-row input,.field-row select{flex:1;padding:6px 10px;border-radius:6px;border:1px solid #30363d;background:#0d1117;color:#c9d1d9;font-size:13px;font-family:monospace}
+.field-row input:focus,.field-row select:focus{outline:none;border-color:#58a6ff}
+.field-row input[type=checkbox]{width:18px;height:18px;flex:none;cursor:pointer}
+.field-row .hint{font-size:11px;color:#484f58;margin-left:152px;margin-top:-4px;margin-bottom:8px}
+.btn{padding:8px 20px;border-radius:6px;border:none;font-size:13px;cursor:pointer;color:#fff}
+.btn-primary{background:#238636}
+.btn-primary:hover{background:#2ea043}
+.btn-danger{background:#da3633}
+.btn-danger:hover{background:#f85149}
 </style>
 </head>
 <body>
 <header>
 <div id="status-dot"></div>
 <h1>RouterPilot</h1>
-<span>Web Console</span>
+<span style="color:#8b949e;font-size:14px;margin-left:auto" id="status-text">disconnected</span>
 </header>
-<div class="container">
+<div class="tabs">
+<div class="tab active" onclick="switchTab('console')">Console</div>
+<div class="tab" onclick="switchTab('dashboard')">Dashboard</div>
+<div class="tab" onclick="switchTab('settings')">Settings</div>
+</div>
+
+<div id="console-panel" class="panel active">
+<div class="console-wrap">
 <div class="sidebar">
 <h3>Quick Commands</h3>
 <div class="cmd" onclick="sendCmd('ping 8.8.8.8')">ping 8.8.8.8</div>
@@ -55,95 +89,181 @@ header span{color:#8b949e;font-size:14px}
 <div class="cmd" onclick="sendCmd('vpn.status')">vpn.status</div>
 <div class="cmd" onclick="sendCmd('bridge.status')">bridge.status</div>
 <div class="cmd" onclick="sendCmd('diagnose')">diagnose</div>
+<div class="cmd" onclick="sendCmd('suggest fixes')">suggest fixes</div>
 </div>
-<div class="main">
+<div style="flex:1;display:flex;flex-direction:column;padding:0 16px 16px;gap:8px">
 <div class="input-row">
-<input type="text" id="cmd-input" placeholder="Type an intent (e.g. ping 8.8.8.8)..." autofocus>
+<input type="text" id="cmd-input" placeholder="Type an intent..." autofocus>
 <button id="send-btn" onclick="sendCmd()">Send</button>
 </div>
 <div id="output"></div>
 </div>
 </div>
+</div>
+
+<div id="dashboard-panel" class="panel">
+<div class="card" id="dash-status"><h3>Status</h3><p>Loading...</p></div>
+<div class="card" id="dash-tools"><h3>Tools</h3><p>Loading...</p></div>
+</div>
+
+<div id="settings-panel" class="panel">
+<div class="settings-form" id="settings-form">
+<p style="color:#8b949e">Loading settings...</p>
+</div>
+</div>
+
 <script>
 let ws = null;
+let currentConfig = {};
+
 const output = document.getElementById('output');
 const input = document.getElementById('cmd-input');
 const statusDot = document.getElementById('status-dot');
+const statusText = document.getElementById('status-text');
 
+function switchTab(name) {
+document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+document.querySelector(`.tab[onclick*='${name}']`).classList.add('active');
+document.getElementById(`${name}-panel`).classList.add('active');
+if (name === 'dashboard') refreshDashboard();
+if (name === 'settings') loadSettings();
+}
+
+// WebSocket
 function connect() {
 const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
 const url = protocol + '//' + location.host + '/ws';
 ws = new WebSocket(url);
-
-ws.onopen = () => {
-statusDot.className = '';
-addEntry('Connected', 'system');
-};
-ws.onclose = () => {
-statusDot.className = 'disconnected';
-addEntry('Disconnected', 'system');
-setTimeout(connect, 3000);
-};
+ws.onopen = () => { statusDot.className = ''; statusText.textContent = 'connected'; addEntry('Connected', 'system'); };
+ws.onclose = () => { statusDot.className = 'disconnected'; statusText.textContent = 'disconnected'; addEntry('Disconnected', 'system'); setTimeout(connect, 3000); };
 ws.onerror = () => {};
-ws.onmessage = (e) => {
-try {
-const msg = JSON.parse(e.data);
-if (msg.type === 'status') addEntry(msg.data, 'system');
-else if (msg.type === 'error') addEntry('Error: ' + msg.data, 'error');
-else if (msg.type === 'result') {
-addResult(msg.data);
-}
-} catch (_) {}
-};
+ws.onmessage = (e) => { try { const m = JSON.parse(e.data); if (m.type==='status') addEntry(m.data,'system'); else if (m.type==='error') addEntry('Error: '+m.data,'error'); else if (m.type==='result') addResult(m.data); } catch(_) {} };
 }
 
 function sendCmd(text) {
-let raw = text || input.value.trim();
-if (!raw) return;
-input.value = '';
-
-let parts = raw.split(/\s+/);
-let intent = parts[0];
-let args = {};
-
+let raw = text || input.value.trim(); if (!raw) return; input.value = '';
+let parts = raw.split(/\s+/); let intent = parts[0]; let args = {};
 if (intent === 'ping' && parts.length > 1) args.target = parts[1];
 else if ((intent === 'dns.lookup' || intent === 'network.traceroute') && parts.length > 1) args.target = parts[1];
-
-if (ws && ws.readyState === WebSocket.OPEN) {
-ws.send(JSON.stringify({intent, args}));
-addEntry('→ ' + raw, 'system');
-}
+if (ws && ws.readyState === WebSocket.OPEN) { ws.send(JSON.stringify({intent,args})); addEntry('→ '+raw, 'system'); }
 }
 
 function addEntry(text, cls) {
-const el = document.createElement('div');
-el.className = 'entry ' + (cls || '');
-el.innerHTML = '<span class="timestamp">' + new Date().toLocaleTimeString() + '</span>' + escapeHTML(text);
-output.appendChild(el);
-output.scrollTop = output.scrollHeight;
+const el = document.createElement('div'); el.className = 'entry ' + (cls||'');
+el.innerHTML = '<span class="timestamp">'+new Date().toLocaleTimeString()+'</span>'+escapeHTML(text);
+output.appendChild(el); output.scrollTop = output.scrollHeight;
 }
 
 function addResult(data) {
-const el = document.createElement('div');
-el.className = 'entry result';
-let html = '<span class="timestamp">' + new Date().toLocaleTimeString() + '</span>';
-if (data.result) {
-html += '<span class="label">Result:</span> ' + escapeHTML(JSON.stringify(data.result.output || data.result, null, 2));
-} else {
-html += escapeHTML(JSON.stringify(data, null, 2));
-}
-el.innerHTML = html;
-output.appendChild(el);
-output.scrollTop = output.scrollHeight;
+const el = document.createElement('div'); el.className = 'entry result';
+let html = '<span class="timestamp">'+new Date().toLocaleTimeString()+'</span>';
+if (data.result) html += '<span class="label">Result:</span> '+escapeHTML(JSON.stringify(data.result.output||data.result, null, 2));
+else html += escapeHTML(JSON.stringify(data, null, 2));
+el.innerHTML = html; output.appendChild(el); output.scrollTop = output.scrollHeight;
 }
 
-function escapeHTML(s) {
-if (typeof s !== 'string') s = String(s);
-return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
+function escapeHTML(s) { if (typeof s !== 'string') s = String(s); return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendCmd(); });
 connect();
+
+// Dashboard
+function refreshDashboard() {
+Promise.all([
+fetch('/health').then(r=>r.ok?r.json():null),
+fetch('/status').then(r=>r.ok?r.json():null),
+fetch('/tools').then(r=>r.ok?r.json():null)
+]).then(([health, svc, tools]) => {
+const statusEl = document.getElementById('dash-status');
+if (!health) { statusEl.innerHTML = '<h3>Status</h3><p class="err">Daemon not reachable</p>'; return; }
+statusEl.innerHTML = '<h3>Status <span class="ok">● running</span></h3><table><tr><td>Tools loaded:</td><td>'+(svc?.tools_cnt||'?')+'</td></tr><tr><td>Version:</td><td>0.1.0</td></tr></table>';
+
+const toolsEl = document.getElementById('dash-tools');
+if (!tools || !tools.length) { toolsEl.innerHTML = '<h3>Tools</h3><p>None</p>'; return; }
+let html = '<h3>Tools ('+tools.length+')</h3><table><tr><th>ID</th><th>Category</th><th>Risk</th></tr>';
+tools.forEach(t => { html += '<tr><td>'+t.id+'</td><td>'+(t.category||'-')+'</td><td>'+(t.risk||'low')+'</td></tr>'; });
+html += '</table>';
+toolsEl.innerHTML = html;
+}).catch(() => {
+document.getElementById('dash-status').innerHTML = '<h3>Status</h3><p class="err">Connection failed</p>';
+});
+}
+
+// Settings
+function loadSettings() {
+const form = document.getElementById('settings-form');
+fetch('/api/config').then(r=>r.json()).then(cfg => {
+currentConfig = cfg;
+let html = '';
+
+// General
+html += '<div class="settings-group"><h3>General</h3>';
+html += field('text', 'general_host', 'Host', cfg.server?.host||'0.0.0.0');
+html += field('text', 'general_port', 'Port', cfg.server?.port||':8080');
+html += field('select', 'general_log_level', 'Log level', cfg.logging?.level||'info', ['debug','info','warn','error']);
+html += field('checkbox', 'general_read_only', 'Read-only', cfg.security?.read_only||false);
+html += field('checkbox', 'general_dry_run', 'Dry-run', cfg.security?.dry_run||false);
+html += '</div>';
+
+// Telegram
+html += '<div class="settings-group"><h3>Telegram</h3>';
+html += field('text', 'telegram_token', 'Bot token', cfg.telegram?.token||'', 'From @BotFather');
+html += '</div>';
+
+// LLM
+html += '<div class="settings-group"><h3>LLM Planner</h3>';
+html += field('select', 'planner_type', 'Type', cfg.planner?.type||'simple', ['simple','llm']);
+html += field('text', 'planner_api_key', 'API key', cfg.planner?.api_key||'');
+html += field('text', 'planner_endpoint', 'Endpoint', cfg.planner?.endpoint||'https://api.openai.com/v1');
+html += field('text', 'planner_model', 'Model', cfg.planner?.model||'gpt-4');
+html += '</div>';
+
+html += '<div style="display:flex;gap:8px">';
+html += '<button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>';
+html += '<button class="btn btn-danger" onclick="loadSettings()">Cancel</button>';
+html += '</div>';
+
+form.innerHTML = html;
+}).catch(() => {
+form.innerHTML = '<p class="err">Failed to load settings. Is the daemon running?</p>';
+});
+}
+
+function field(type, id, label, value, extra) {
+if (type === 'checkbox') {
+const chk = value ? 'checked' : '';
+return `<div class="field-row"><label>${label}</label><input type="checkbox" id="${id}" ${chk}></div>`;
+}
+if (type === 'select') {
+let opts = extra.map(v => `<option value="${v}" ${v===value?'selected':''}>${v}</option>`).join('');
+return `<div class="field-row"><label>${label}</label><select id="${id}">${opts}</select></div>`;
+}
+const ph = extra ? `placeholder="${extra}"` : '';
+return `<div class="field-row"><label>${label}</label><input type="text" id="${id}" value="${escapeAttr(String(value))}" ${ph}></div>`;
+}
+
+function escapeAttr(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function saveSettings() {
+const cfg = {
+server: {host: val('general_host'), port: val('general_port')},
+logging: {level: val('general_log_level')},
+planner: {type: val('planner_type'), api_key: val('planner_api_key'), endpoint: val('planner_endpoint'), model: val('planner_model')},
+telegram: {token: val('telegram_token')},
+security: {read_only: cb('general_read_only'), dry_run: cb('general_dry_run')}
+};
+fetch('/api/config', {
+method: 'PUT',
+headers: {'Content-Type':'application/json'},
+body: JSON.stringify(cfg)
+}).then(r=>r.json()).then(data => {
+if (data.status === 'ok') {
+document.getElementById('settings-form').insertAdjacentHTML('afterbegin', '<div style="background:#0d2818;color:#7ee787;padding:8px 16px;border-radius:6px">Settings saved! Restart service to apply changes.</div>');
+}
+}).catch(() => alert('Save failed'));
+}
+function val(id) { const e = document.getElementById(id); return e ? e.value : ''; }
+function cb(id) { const e = document.getElementById(id); return e ? e.checked : false; }
 </script>
 </body>
 </html>

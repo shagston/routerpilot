@@ -3,24 +3,25 @@
 uci -q batch <<EOF
 	del uci.routerpilot 2>/dev/null
 
-	set routerpilot.settings=settings
-	set routerpilot.settings.port=8080
-	set routerpilot.settings.host=0.0.0.0
-	set routerpilot.settings.log_level=info
-	set routerpilot.settings.read_only=1
-	set routerpilot.settings.dry_run=0
-	set routerpilot.settings.plugin_dir=plugins
+	set routerpilot.general=general
+	set routerpilot.general.port=8080
+	set routerpilot.general.host=0.0.0.0
+	set routerpilot.general.log_level=info
+	set routerpilot.general.read_only=1
+	set routerpilot.general.dry_run=0
 
 	set routerpilot.telegram=telegram
-	set routerpilot.telegram.enabled=0
-	set routerpilot.telegram.token=""
-	set routerpilot.telegram.allowed_ids=""
+	set routerpilot.telegram.tel_enabled=0
+	set routerpilot.telegram.tel_token=""
+	set routerpilot.telegram.tel_allowed_ids=""
 
 	set routerpilot.llm=llm
-	set routerpilot.llm.type=simple
-	set routerpilot.llm.api_key=""
-	set routerpilot.llm.endpoint=https://api.openai.com/v1
-	set routerpilot.llm.model=gpt-4
+	set routerpilot.llm.llm_type=simple
+	set routerpilot.llm.llm_api_key=""
+	set routerpilot.llm.llm_endpoint=https://api.openai.com/v1
+	set routerpilot.llm.llm_model=gpt-4
+
+	set routerpilot.schedule=schedule
 
 	commit routerpilot
 EOF

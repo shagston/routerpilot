@@ -97,10 +97,7 @@ install_luci() {
 
 	local files="
 		luasrc/controller/routerpilot.lua:/usr/lib/lua/luci/controller/routerpilot.lua
-		luasrc/model/cbi/routerpilot/general.lua:/usr/lib/lua/luci/model/cbi/routerpilot/general.lua
-		luasrc/model/cbi/routerpilot/telegram.lua:/usr/lib/lua/luci/model/cbi/routerpilot/telegram.lua
-		luasrc/model/cbi/routerpilot/llm.lua:/usr/lib/lua/luci/model/cbi/routerpilot/llm.lua
-		luasrc/model/cbi/routerpilot/schedule.lua:/usr/lib/lua/luci/model/cbi/routerpilot/schedule.lua
+		luasrc/model/cbi/routerpilot.lua:/usr/lib/lua/luci/model/cbi/routerpilot.lua
 		luasrc/view/routerpilot_dashboard.htm:/usr/lib/lua/luci/view/routerpilot_dashboard.htm
 		luasrc/view/routerpilot_execute.htm:/usr/lib/lua/luci/view/routerpilot_execute.htm
 		luasrc/view/routerpilot_chat.htm:/usr/lib/lua/luci/view/routerpilot_chat.htm
@@ -190,7 +187,7 @@ show_help() {
 	  rm -f /usr/bin/routerpilot
 	  rm -f /etc/init.d/routerpilot
 	  rm -f /usr/lib/lua/luci/controller/routerpilot.lua
-	  rm -rf /usr/lib/lua/luci/model/cbi/routerpilot
+	  rm -f /usr/lib/lua/luci/model/cbi/routerpilot.lua
 	  rm -f /usr/lib/lua/luci/view/routerpilot_*.htm
 	  rm -rf /www/luci-static/resources/view/routerpilot
 	  rm -f /etc/uci-defaults/40_luci-routerpilot*
