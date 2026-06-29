@@ -29,6 +29,10 @@ func (ec *EvidenceCollector) Collect(ctx context.Context, checks []string) (map[
 		"dhcp_leases":      ec.collectDHCPLeases,
 		"connections":      ec.collectConnections,
 		"wifi_status":      ec.collectWiFiStatus,
+		"system_memory":    ec.collectSystemMemory,
+		"system_disk":      ec.collectSystemDisk,
+		"system_processes": ec.collectSystemProcesses,
+		"vpn_status":       ec.collectVPNStatus,
 	}
 
 	for _, check := range checks {
@@ -168,6 +172,58 @@ func (ec *EvidenceCollector) collectConnections(ctx context.Context) (any, error
 
 func (ec *EvidenceCollector) collectWiFiStatus(ctx context.Context) (any, error) {
 	result, err := ec.runTool(ctx, "wifi.status", types.ToolInput{})
+	if err != nil {
+		return map[string]any{"success": false, "error": err.Error()}, nil
+	}
+	output := result.Output
+	if output == nil {
+		output = types.ToolOutput{}
+	}
+	output["success"] = result.Success
+	return output, nil
+}
+
+func (ec *EvidenceCollector) collectSystemMemory(ctx context.Context) (any, error) {
+	result, err := ec.runTool(ctx, "system.memory", types.ToolInput{})
+	if err != nil {
+		return map[string]any{"success": false, "error": err.Error()}, nil
+	}
+	output := result.Output
+	if output == nil {
+		output = types.ToolOutput{}
+	}
+	output["success"] = result.Success
+	return output, nil
+}
+
+func (ec *EvidenceCollector) collectSystemDisk(ctx context.Context) (any, error) {
+	result, err := ec.runTool(ctx, "system.disk", types.ToolInput{})
+	if err != nil {
+		return map[string]any{"success": false, "error": err.Error()}, nil
+	}
+	output := result.Output
+	if output == nil {
+		output = types.ToolOutput{}
+	}
+	output["success"] = result.Success
+	return output, nil
+}
+
+func (ec *EvidenceCollector) collectSystemProcesses(ctx context.Context) (any, error) {
+	result, err := ec.runTool(ctx, "system.processes", types.ToolInput{"sort": "cpu", "limit": 5})
+	if err != nil {
+		return map[string]any{"success": false, "error": err.Error()}, nil
+	}
+	output := result.Output
+	if output == nil {
+		output = types.ToolOutput{}
+	}
+	output["success"] = result.Success
+	return output, nil
+}
+
+func (ec *EvidenceCollector) collectVPNStatus(ctx context.Context) (any, error) {
+	result, err := ec.runTool(ctx, "vpn.status", types.ToolInput{})
 	if err != nil {
 		return map[string]any{"success": false, "error": err.Error()}, nil
 	}

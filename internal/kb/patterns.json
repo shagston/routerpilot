@@ -241,6 +241,113 @@
           ]
         }
       ]
+    },
+    {
+      "id": "high-cpu",
+      "title": "High CPU load",
+      "description": "System CPU usage is abnormally high, affecting network performance",
+      "checks": ["system_memory", "system_processes", "connections"],
+      "solutions": [
+        {
+          "priority": 1,
+          "title": "Identify top CPU consumers",
+          "steps": [
+            "Run: system.processes sort=cpu limit=10",
+            "Check for runaway processes or crypto miners",
+            "Kill any suspicious processes"
+          ]
+        },
+        {
+          "priority": 2,
+          "title": "Restart high-usage services",
+          "steps": [
+            "Identify which service is consuming CPU",
+            "Restart the problematic service: service.restart name=<service>",
+            "If unknown, restart the router"
+          ]
+        },
+        {
+          "priority": 3,
+          "title": "Check for network storms",
+          "steps": [
+            "Run: network.connections to check for excessive connections",
+            "Look for unusual broadcast/multicast traffic",
+            "Consider enabling storm control on switch ports"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "low-disk-space",
+      "title": "Low disk space",
+      "description": "System storage is running low, may affect logging and services",
+      "checks": ["system_disk", "system_memory"],
+      "solutions": [
+        {
+          "priority": 1,
+          "title": "Clean temporary files",
+          "steps": [
+            "Check disk usage: system.disk",
+            "Remove old logs: system.logs lines=0 (if supported)",
+            "Clean /tmp directory: rm -rf /tmp/*",
+            "Remove old package caches: opkg clean"
+          ]
+        },
+        {
+          "priority": 2,
+          "title": "Analyze disk usage",
+          "steps": [
+            "Run: du -sh /* 2>/dev/null | sort -rh | head -10",
+            "Identify large directories and files",
+            "Remove unnecessary packages or data"
+          ]
+        },
+        {
+          "priority": 3,
+          "title": "Expand or reconfigure storage",
+          "steps": [
+            "If using overlay: check overlay size and clean old backups",
+            "Consider adding external storage (USB/SD)",
+            "Move logs to external storage if available"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "vpn-disconnected",
+      "title": "VPN tunnel is down",
+      "description": "VPN connection is not active or failed to establish",
+      "checks": ["vpn_status", "interface_status", "dns_resolve"],
+      "solutions": [
+        {
+          "priority": 1,
+          "title": "Check VPN service status",
+          "steps": [
+            "Run: vpn.status to list current VPN tunnels",
+            "Verify expected interfaces are present",
+            "Check VPN log: system.logs filter=vpn lines=50"
+          ]
+        },
+        {
+          "priority": 2,
+          "title": "Restart VPN service",
+          "steps": [
+            "Restart WireGuard: service.restart name=wg-quick or ifup wg0",
+            "Restart OpenVPN: service.restart name=openvpn",
+            "Wait 10 seconds and verify: vpn.status"
+          ]
+        },
+        {
+          "priority": 3,
+          "title": "Check VPN configuration",
+          "steps": [
+            "Verify endpoint is reachable: ping <vpn-server>",
+            "Check DNS resolution of VPN server: dns.lookup <vpn-server>",
+            "Verify credentials and certificates are valid",
+            "Check for port blocking on firewall"
+          ]
+        }
+      ]
     }
   ]
 }

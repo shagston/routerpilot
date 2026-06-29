@@ -133,6 +133,12 @@ func EvaluatePattern(pattern ProblemPattern, evidence map[string]any) (bool, str
 		return EvaluateDHCPExhausted(evidence)
 	case "high-latency":
 		return EvaluateHighLatency(evidence)
+	case "high-cpu":
+		return EvaluateHighCPU(evidence)
+	case "low-disk-space":
+		return EvaluateLowDiskSpace(evidence)
+	case "vpn-disconnected":
+		return EvaluateVPNDisconnected(evidence)
 	default:
 		return false, ""
 	}
@@ -267,6 +273,77 @@ func EvaluateDHCPExhausted(evidence map[string]any) (bool, string) {
 					max := toInt(total)
 					if max > 0 && float64(used)/float64(max) >= 0.9 {
 						return true, fmt.Sprintf("DHCP pool is %.0f%% full (%d/%d)", float64(used)/float64(max)*100, used, max)
+					}
+				}
+			}
+		}
+	}
+	return false, ""
+}
+
+func EvaluateHighCPU(evidence map[string]any) (bool, string) {
+	if memResult, ok := evidence["system_memory"]; ok {
+		if m, ok := memResult.(map[string]any); ok {
+			if usage, exists := m["usage_percent"]; exists {
+				usageF := toFloat(usage)
+				if usageF > 90 {
+					return true, fmt.Sprintf("Memory usage is %.0f%%", usageF)
+				}
+			}
+			if load, exists := m["load_avg"]; exists {
+				if loadStr, ok := load.(string); ok {
+					parts := strings.Fields(loadStr)
+					if len(parts) > 0 {
+						oneMin := toFloat(parts[0])
+						if oneMin > 4.0 {
+							return true, fmt.Sprintf("CPU load average is %.2f", oneMin)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if procResult, ok := evidence["system_processes"]; ok {
+		if m, ok := procResult.(map[string]any); ok {
+			if count, exists := m["count"]; exists {
+				if toInt(count) > 100 {
+					return true, fmt.Sprintf("High process count: %d", toInt(count))
+				}
+			}
+		}
+	}
+
+	return false, ""
+}
+
+func EvaluateLowDiskSpace(evidence map[string]any) (bool, string) {
+	if diskResult, ok := evidence["system_disk"]; ok {
+		if m, ok := diskResult.(map[string]any); ok {
+			if usage, exists := m["usage_percent"]; exists {
+				usageF := toFloat(usage)
+				if usageF > 90 {
+					return true, fmt.Sprintf("Disk usage is %.0f%%", usageF)
+				}
+			}
+		}
+	}
+	return false, ""
+}
+
+func EvaluateVPNDisconnected(evidence map[string]any) (bool, string) {
+	if vpnResult, ok := evidence["vpn_status"]; ok {
+		if m, ok := vpnResult.(map[string]any); ok {
+			if interfaces, exists := m["interfaces"]; exists {
+				if ifaces, ok := interfaces.([]any); ok {
+					for _, iface := range ifaces {
+						if i, ok := iface.(map[string]any); ok {
+							if state, exists := i["state"]; exists {
+								if state == "down" || state == "disconnected" || state == "error" {
+									return true, fmt.Sprintf("VPN interface %v is %v", i["name"], state)
+								}
+							}
+						}
 					}
 				}
 			}

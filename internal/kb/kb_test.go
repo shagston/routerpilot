@@ -369,3 +369,110 @@ func TestFormatMarkdown_NotMatched(t *testing.T) {
 		t.Fatal("expected non-empty markdown")
 	}
 }
+
+func TestEvaluateHighCPU_HighMemory(t *testing.T) {
+	evidence := map[string]any{
+		"system_memory": map[string]any{
+			"usage_percent": float64(95),
+		},
+	}
+	match, desc := EvaluateHighCPU(evidence)
+	if !match {
+		t.Fatal("expected match for high memory usage")
+	}
+	if desc == "" {
+		t.Fatal("expected non-empty description")
+	}
+}
+
+func TestEvaluateHighCPU_Normal(t *testing.T) {
+	evidence := map[string]any{
+		"system_memory": map[string]any{
+			"usage_percent": float64(50),
+		},
+	}
+	match, _ := EvaluateHighCPU(evidence)
+	if match {
+		t.Fatal("expected no match for normal memory usage")
+	}
+}
+
+func TestEvaluateHighCPU_NoEvidence(t *testing.T) {
+	match, _ := EvaluateHighCPU(map[string]any{})
+	if match {
+		t.Fatal("expected no match with no evidence")
+	}
+}
+
+func TestEvaluateLowDiskSpace_High(t *testing.T) {
+	evidence := map[string]any{
+		"system_disk": map[string]any{
+			"usage_percent": float64(95),
+		},
+	}
+	match, desc := EvaluateLowDiskSpace(evidence)
+	if !match {
+		t.Fatal("expected match for high disk usage")
+	}
+	if desc == "" {
+		t.Fatal("expected non-empty description")
+	}
+}
+
+func TestEvaluateLowDiskSpace_Normal(t *testing.T) {
+	evidence := map[string]any{
+		"system_disk": map[string]any{
+			"usage_percent": float64(40),
+		},
+	}
+	match, _ := EvaluateLowDiskSpace(evidence)
+	if match {
+		t.Fatal("expected no match for normal disk usage")
+	}
+}
+
+func TestEvaluateLowDiskSpace_NoEvidence(t *testing.T) {
+	match, _ := EvaluateLowDiskSpace(map[string]any{})
+	if match {
+		t.Fatal("expected no match with no evidence")
+	}
+}
+
+func TestEvaluateVPNDisconnected_Down(t *testing.T) {
+	evidence := map[string]any{
+		"vpn_status": map[string]any{
+			"interfaces": []any{
+				map[string]any{"name": "wg0", "state": "up"},
+				map[string]any{"name": "wg1", "state": "down"},
+			},
+		},
+	}
+	match, desc := EvaluateVPNDisconnected(evidence)
+	if !match {
+		t.Fatal("expected match for VPN down")
+	}
+	if desc == "" {
+		t.Fatal("expected non-empty description")
+	}
+}
+
+func TestEvaluateVPNDisconnected_AllUp(t *testing.T) {
+	evidence := map[string]any{
+		"vpn_status": map[string]any{
+			"interfaces": []any{
+				map[string]any{"name": "wg0", "state": "up"},
+			},
+		},
+	}
+	match, _ := EvaluateVPNDisconnected(evidence)
+	if match {
+		t.Fatal("expected no match when all VPNs are up")
+	}
+}
+
+func TestEvaluateVPNDisconnected_NoVPN(t *testing.T) {
+	match, _ := EvaluateVPNDisconnected(map[string]any{})
+	if match {
+		t.Fatal("expected no match with no VPN evidence")
+	}
+}
