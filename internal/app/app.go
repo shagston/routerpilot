@@ -62,6 +62,7 @@ func New() (*App, error) {
 		networktools.IPAddressSetTool{Provider: netProv},
 		networktools.RouteGetTool{Provider: netProv},
 		networktools.RouteAddTool{Provider: netProv},
+		networktools.BandwidthTool{},
 		networktools.TracerouteTool{},
 		networktools.NeighborsTool{},
 		networktools.ConnectionsTool{},

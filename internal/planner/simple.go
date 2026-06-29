@@ -63,6 +63,8 @@ func (p *SimplePlanner) Plan(ctx context.Context, intent planner.Intent, snapsho
 		return p.planWifiStatus(intent)
 	case "wifi.connect":
 		return p.planWiFiConnect(intent)
+	case "network.bandwidth":
+		return p.planBandwidth(intent)
 	case "network.traceroute":
 		return p.planTraceroute(intent)
 	case "network.neighbors":
@@ -534,6 +536,37 @@ func (p *SimplePlanner) planSystemProcesses(intent planner.Intent) (types.Plan, 
 	if sort, ok := intent.Arguments["sort"].(string); ok && sort != "" {
 		plan.Steps[0].Arguments = types.ToolInput{"sort": sort}
 	}
+	return plan, nil
+}
+
+func (p *SimplePlanner) planBandwidth(intent planner.Intent) (types.Plan, error) {
+	target, ok := intent.Arguments["target"].(string)
+	if !ok || target == "" {
+		return types.Plan{}, fmt.Errorf("network.bandwidth intent requires 'target' argument")
+	}
+
+	plan := types.Plan{
+		ID:     types.PlanID("plan-bandwidth"),
+		Intent: fmt.Sprintf("Measure bandwidth to %s", target),
+		Steps: []types.Task{
+			{
+				ID:   types.TaskID("bandwidth"),
+				Tool: "network.bandwidth",
+				Arguments: types.ToolInput{
+					"target": target,
+				},
+			},
+		},
+		Risk: types.RiskLow,
+	}
+
+	if direction, ok := intent.Arguments["direction"].(string); ok && direction != "" {
+		plan.Steps[0].Arguments["direction"] = direction
+	}
+	if duration, ok := intent.Arguments["duration"].(int); ok && duration > 0 {
+		plan.Steps[0].Arguments["duration"] = duration
+	}
+
 	return plan, nil
 }
 

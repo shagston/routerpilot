@@ -47,6 +47,7 @@ var intentDependencies = map[string][]types.ToolID{
 	"dhcp.leases":         {"dhcp.leases"},
 	"firewall.status":     {"firewall.status"},
 	"firewall.reload":     {"firewall.status"},
+	"network.bandwidth":   {"network.ping", "network.interface_status"},
 	"network.traceroute":  {"network.interface_status"},
 	"network.neighbors":   {"network.neighbors"},
 	"network.connections": {"network.connections"},
