@@ -201,19 +201,22 @@ func runServe() error {
 	}
 
 	srv := api.NewServer(instance)
+	host := os.Getenv("ROUTERPILOT_HOST")
+	if host == "" {
+		host = "0.0.0.0"
+	}
 	port := os.Getenv("ROUTERPILOT_PORT")
 	if port == "" {
-		port = ":8080"
-	} else if port[0] != ':' {
-		port = ":" + port
+		port = "8080"
 	}
+	addr := host + ":" + port
 
-	fmt.Printf("RouterPilot API server starting on %s...\n", port)
+	fmt.Printf("RouterPilot API server starting on %s...\n", addr)
 
 	// Channel to capture serve error (non-nil means unexpected shutdown)
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- srv.Serve(port)
+		errCh <- srv.Serve(addr)
 	}()
 
 	// Wait for interrupt
@@ -268,4 +271,8 @@ func printUsage() {
 	fmt.Println()
 	fmt.Println("Environment:")
 	fmt.Println("  ROUTERPILOT_TELEGRAM_TOKEN  Bot token for Telegram integration")
+	fmt.Println("  ROUTERPILOT_HOST            HTTP server host (default: 0.0.0.0)")
+	fmt.Println("  ROUTERPILOT_PORT            HTTP server port (default: 8080)")
+	fmt.Println("  ROUTERPILOT_READ_ONLY       Block write operations (true/false)")
+	fmt.Println("  ROUTERPILOT_DRY_RUN         Simulate all operations (true/false)")
 }

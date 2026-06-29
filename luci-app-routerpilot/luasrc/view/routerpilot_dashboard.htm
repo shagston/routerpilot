@@ -1,0 +1,15 @@
+<%
++#
++# RouterPilot dashboard view
++# Loads the JS view module
++#
+-%>
+<%+header%>
+<div id="view-routerpilot-dashboard"></div>
+<script type="text/javascript">
+	L.require('view.routerpilot.dashboard').then(function(view) {
+		var instance = new view();
+		instance.renderInitial(document.getElementById('view-routerpilot-dashboard'));
+	});
+</script>
+<%+footer%>

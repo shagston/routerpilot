@@ -1,0 +1,14 @@
+#!/bin/sh
+
+uci -q batch <<EOF
+	del uci.routerpilot
+	set routerpilot.settings=settings
+	set routerpilot.settings.port=8080
+	set routerpilot.settings.host=0.0.0.0
+	set routerpilot.settings.log_level=info
+	set routerpilot.settings.read_only=1
+	set routerpilot.settings.dry_run=0
+	commit routerpilot
+EOF
+
+exit 0

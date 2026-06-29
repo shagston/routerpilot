@@ -1,0 +1,15 @@
+<%
++#
++# RouterPilot console view
++# Embeds the RouterPilot web UI in an iframe
++#
+-%>
+<%+header%>
+<div id="view-routerpilot-console"></div>
+<script type="text/javascript">
+	L.require('view.routerpilot.console').then(function(view) {
+		var instance = new view();
+		instance.renderInitial(document.getElementById('view-routerpilot-console'));
+	});
+</script>
+<%+footer%>
