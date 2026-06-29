@@ -8,7 +8,7 @@ include $(TOPDIR)/rules.mk
 
 LUCI_TITLE:=RouterPilot - AI-native network automation daemon
 LUCI_DESCRIPTION:=Real-time network diagnostics, automation, and offline troubleshooting for OpenWrt
-LUCI_DEPENDS:=+routerpilot +luci-base
+LUCI_DEPENDS:=+routerpilot +luci-base +lua
 LUCI_PKGARCH:=all
 
 PKG_NAME:=luci-app-routerpilot

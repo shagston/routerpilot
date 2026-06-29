@@ -1,0 +1,41 @@
+{
+	"admin/services/routerpilot": {
+		"title": "RouterPilot",
+		"order": 60,
+		"action": {
+			"type": "firstchild"
+		}
+	},
+	"admin/services/routerpilot/dashboard": {
+		"title": "Dashboard",
+		"order": 10,
+		"action": {
+			"type": "view",
+			"path": "routerpilot/dashboard"
+		}
+	},
+	"admin/services/routerpilot/execute": {
+		"title": "Execute",
+		"order": 20,
+		"action": {
+			"type": "view",
+			"path": "routerpilot/execute"
+		}
+	},
+	"admin/services/routerpilot/chat": {
+		"title": "Chat",
+		"order": 30,
+		"action": {
+			"type": "view",
+			"path": "routerpilot/chat"
+		}
+	},
+	"admin/services/routerpilot/settings": {
+		"title": "Settings",
+		"order": 40,
+		"action": {
+			"type": "view",
+			"path": "routerpilot/settings"
+		}
+	}
+}

@@ -92,34 +92,86 @@ install_binary() {
 	return 1
 }
 
+install_lua_runtime() {
+	if command -v lua >/dev/null 2>&1; then
+		info "Lua runtime already installed."
+		return 0
+	fi
+
+	info "Lua runtime not found. Attempting to install via opkg..."
+	if command -v opkg >/dev/null 2>&1; then
+		opkg update 2>/dev/null || true
+		if opkg install lua 2>/dev/null; then
+			info "Lua runtime installed."
+			return 0
+		fi
+		warn "Could not install Lua via opkg."
+	else
+		warn "opkg not found — cannot install Lua."
+	fi
+
+	warn "LuCI will use JS-only mode (menu.d). Lua-based features (CBI settings) will be unavailable."
+	warn "The web UI on port 8080 will still work."
+	return 1
+}
+
 install_luci() {
 	info "Installing LuCI app..."
 
-	local files="
-		luasrc/controller/routerpilot.lua:/usr/lib/lua/luci/controller/routerpilot.lua
-		luasrc/model/cbi/routerpilot.lua:/usr/lib/lua/luci/model/cbi/routerpilot.lua
-		luasrc/view/routerpilot_dashboard.htm:/usr/lib/lua/luci/view/routerpilot_dashboard.htm
-		luasrc/view/routerpilot_execute.htm:/usr/lib/lua/luci/view/routerpilot_execute.htm
-		luasrc/view/routerpilot_chat.htm:/usr/lib/lua/luci/view/routerpilot_chat.htm
+	local failed=0
+
+	local has_lua
+	if command -v lua >/dev/null 2>&1; then
+		has_lua=1
+	fi
+
+	if [ -n "$has_lua" ]; then
+		info "Lua runtime found. Installing Lua controller + CBI + templates (no menu.d, avoid duplicates)."
+
+		local lua_files="
+			luasrc/controller/routerpilot.lua:/usr/lib/lua/luci/controller/routerpilot.lua
+			luasrc/model/cbi/routerpilot.lua:/usr/lib/lua/luci/model/cbi/routerpilot.lua
+			luasrc/view/routerpilot_dashboard.htm:/usr/lib/lua/luci/view/routerpilot_dashboard.htm
+			luasrc/view/routerpilot_execute.htm:/usr/lib/lua/luci/view/routerpilot_execute.htm
+			luasrc/view/routerpilot_chat.htm:/usr/lib/lua/luci/view/routerpilot_chat.htm
+		"
+
+		for entry in $lua_files; do
+			local src="${entry%%:*}"
+			local dst="${entry##*:}"
+			mkdir -p "$(dirname "$dst")"
+			local url="$BASE_URL/luci-app-routerpilot/$src"
+			if ! download "$url" "$dst" "$(basename "$dst")"; then
+				err "Failed to download $src"
+				failed=1
+			fi
+		done
+	else
+		info "Lua runtime not available — using JS-only mode (menu.d)."
+	fi
+
+	# JS-only files (always installed; menu.d only when Lua is absent)
+	local js_files="
 		htdocs/luci-static/resources/view/routerpilot/dashboard.js:/www/luci-static/resources/view/routerpilot/dashboard.js
 		htdocs/luci-static/resources/view/routerpilot/execute.js:/www/luci-static/resources/view/routerpilot/execute.js
 		htdocs/luci-static/resources/view/routerpilot/chat.js:/www/luci-static/resources/view/routerpilot/chat.js
+		htdocs/luci-static/resources/view/routerpilot/settings.js:/www/luci-static/resources/view/routerpilot/settings.js
 		root/etc/init.d/routerpilot:/etc/init.d/routerpilot
 		root/etc/uci-defaults/40_luci-routerpilot:/etc/uci-defaults/40_luci-routerpilot
 	"
 
-	local failed=0
-	for entry in $files; do
+	# menu.d JSON only needed when Lua controller is absent
+	if [ -z "$has_lua" ]; then
+		js_files="$js_files
+			root/usr/share/luci/menu.d/luci-app-routerpilot.json:/usr/share/luci/menu.d/luci-app-routerpilot.json"
+	fi
+
+	for entry in $js_files; do
 		local src="${entry%%:*}"
 		local dst="${entry##*:}"
-
-		# Create parent directory
 		mkdir -p "$(dirname "$dst")"
-
 		local url="$BASE_URL/luci-app-routerpilot/$src"
-		if download "$url" "$dst" "$(basename "$dst")"; then
-			:
-		else
+		if ! download "$url" "$dst" "$(basename "$dst")"; then
 			err "Failed to download $src"
 			failed=1
 		fi
@@ -189,6 +241,7 @@ show_help() {
 	  rm -f /usr/lib/lua/luci/controller/routerpilot.lua
 	  rm -f /usr/lib/lua/luci/model/cbi/routerpilot.lua
 	  rm -f /usr/lib/lua/luci/view/routerpilot_*.htm
+	  rm -f /usr/share/luci/menu.d/luci-app-routerpilot.json
 	  rm -rf /www/luci-static/resources/view/routerpilot
 	  rm -f /etc/uci-defaults/40_luci-routerpilot*
 	  uci delete routerpilot 2>/dev/null && uci commit routerpilot
@@ -209,9 +262,11 @@ info "  Repo: $REPO"
 info "========================================="
 echo ""
 
-install_luci
-echo ""
 install_binary
+echo ""
+install_lua_runtime
+echo ""
+install_luci
 echo ""
 configure
 show_help
