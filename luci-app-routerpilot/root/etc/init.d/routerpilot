@@ -21,10 +21,10 @@ start_service() {
 	config_get_bool tel_enabled telegram tel_enabled 0
 	config_get       tel_token  telegram tel_token ""
 
-	# Fallback: read token from routerpilot.json if UCI is empty
-	if [ -z "$tel_token" ] && [ -f "routerpilot.json" ]; then
+	# Fallback: read token from /routerpilot.json if UCI is empty
+	if [ -z "$tel_token" ] && [ -f /routerpilot.json ]; then
 		local json_token
-		json_token=$(grep -o '"token"[[:space:]]*:[[:space:]]*"[^"]*"' routerpilot.json 2>/dev/null | head -1 | cut -d'"' -f4)
+		json_token=$(grep -o '"token"[^"]*"[^"]*"' /routerpilot.json 2>/dev/null | head -1 | cut -d'"' -f4)
 		[ -n "$json_token" ] && tel_token="$json_token" && tel_enabled=1
 	fi
 
