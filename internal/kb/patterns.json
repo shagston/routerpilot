@@ -1,0 +1,246 @@
+{
+  "patterns": [
+    {
+      "id": "no-internet",
+      "title": "No internet access",
+      "description": "Cannot reach external hosts",
+      "checks": ["interface_status", "default_route", "ping_external"],
+      "solutions": [
+        {
+          "priority": 1,
+          "title": "Check physical/WAN connection",
+          "steps": [
+            "Verify WAN cable is connected",
+            "Check link LED on WAN port",
+            "Try a different cable or port"
+          ]
+        },
+        {
+          "priority": 2,
+          "title": "Restart WAN interface",
+          "steps": [
+            "Run: interface.set interface=wan state=down",
+            "Wait 5 seconds",
+            "Run: interface.set interface=wan state=up"
+          ]
+        },
+        {
+          "priority": 3,
+          "title": "Renew DHCP lease",
+          "steps": [
+            "Run: interface.set interface=wan state=down",
+            "Run: ip.set interface=wan source=dhcp",
+            "Wait for DHCP negotiation",
+            "Check: interface.status interface=wan"
+          ]
+        },
+        {
+          "priority": 4,
+          "title": "Check gateway reachability",
+          "steps": [
+            "Find default gateway: route.show",
+            "Ping gateway IP directly",
+            "If unreachable, check ISP or upstream device"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "interface-down",
+      "title": "Interface is down",
+      "description": "A network interface is not in the expected up state",
+      "checks": ["interface_status"],
+      "solutions": [
+        {
+          "priority": 1,
+          "title": "Bring interface up",
+          "steps": [
+            "Run: interface.set interface=<name> state=up",
+            "Verify: interface.status interface=<name>"
+          ]
+        },
+        {
+          "priority": 2,
+          "title": "Check interface configuration",
+          "steps": [
+            "Verify interface exists in system config",
+            "Check if interface is disabled in firmware",
+            "Try physical reconnect if applicable"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "no-ip",
+      "title": "Interface has no IP address",
+      "description": "Interface is up but has no assigned IP",
+      "checks": ["interface_status", "ip_address"],
+      "solutions": [
+        {
+          "priority": 1,
+          "title": "Request DHCP lease",
+          "steps": [
+            "Run: interface.set interface=<name> state=down",
+            "Run: ip.set interface=<name> source=dhcp",
+            "Wait 10 seconds",
+            "Check: ip.show interface=<name>"
+          ]
+        },
+        {
+          "priority": 2,
+          "title": "Assign static IP",
+          "steps": [
+            "Determine correct subnet and gateway",
+            "Run: ip.set interface=<name> address=192.168.1.x/24",
+            "Add default route if needed: route.add destination=0.0.0.0/0 gateway=192.168.1.1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dns-failure",
+      "title": "DNS resolution failure",
+      "description": "Hostnames cannot be resolved to IP addresses",
+      "checks": ["interface_status", "ip_address", "dns_resolve"],
+      "solutions": [
+        {
+          "priority": 1,
+          "title": "Check DNS server configuration",
+          "steps": [
+            "Run: dns.status to see current resolvers",
+            "Verify DNS servers are reachable (ping them)",
+            "Check /etc/resolv.conf for valid entries"
+          ]
+        },
+        {
+          "priority": 2,
+          "title": "Switch to alternative DNS",
+          "steps": [
+            "Try Cloudflare: 1.1.1.1, 1.0.0.1",
+            "Try Google: 8.8.8.8, 8.8.4.4",
+            "Update resolver configuration accordingly"
+          ]
+        },
+        {
+          "priority": 3,
+          "title": "Restart DNS service",
+          "steps": [
+            "Run: service.restart name=dnsmasq (if available)",
+            "Run: dns.flush to clear cache",
+            "Verify: dns.lookup google.com"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "no-default-route",
+      "title": "Missing default gateway",
+      "description": "No default route configured for external access",
+      "checks": ["default_route", "ip_address"],
+      "solutions": [
+        {
+          "priority": 1,
+          "title": "Add default route via DHCP",
+          "steps": [
+            "Restart interface to request new lease: ip.set interface=wan source=dhcp",
+            "Verify: route.show"
+          ]
+        },
+        {
+          "priority": 2,
+          "title": "Manually add default route",
+          "steps": [
+            "Determine gateway IP from ISP or upstream network",
+            "Run: route.add destination=0.0.0.0/0 gateway=<gateway-ip>",
+            "Verify: route.show"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wifi-disconnected",
+      "title": "Wi-Fi not connected",
+      "description": "Wireless interface is down or not associated",
+      "checks": ["interface_status", "wifi_status"],
+      "solutions": [
+        {
+          "priority": 1,
+          "title": "Check Wi-Fi interface state",
+          "steps": [
+            "Run: wifi.status to see current state",
+            "If down: enable wireless in system config",
+            "Scan for networks: wifi.scan"
+          ]
+        },
+        {
+          "priority": 2,
+          "title": "Re-enable wireless",
+          "steps": [
+            "Run: interface.set interface=wlan0 state=up",
+            "Wait for association",
+            "Check: wifi.status"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dhcp-exhausted",
+      "title": "DHCP pool exhausted",
+      "description": "DHCP server has no available addresses to assign",
+      "checks": ["dhcp_leases", "interface_status"],
+      "solutions": [
+        {
+          "priority": 1,
+          "title": "Check active leases",
+          "steps": [
+            "Run: dhcp.leases to see current assignments",
+            "Identify stale/expired leases",
+            "Consider reducing lease time"
+          ]
+        },
+        {
+          "priority": 2,
+          "title": "Expand DHCP pool",
+          "steps": [
+            "Increase the DHCP range in DHCP server config",
+            "Restart DHCP service to apply changes"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "high-latency",
+      "title": "High latency or packet loss",
+      "description": "Network is slow or dropping packets",
+      "checks": ["ping_external", "interface_status", "connections"],
+      "solutions": [
+        {
+          "priority": 1,
+          "title": "Check interface errors",
+          "steps": [
+            "Run: interface.status and check error/drop counters",
+            "High errors suggest physical layer issues (cable, duplex mismatch)"
+          ]
+        },
+        {
+          "priority": 2,
+          "title": "Check bandwidth usage",
+          "steps": [
+            "Run: network.connections to see active connections",
+            "Identify bandwidth-heavy clients",
+            "Consider QoS/traffic shaping"
+          ]
+        },
+        {
+          "priority": 3,
+          "title": "Test with different cable/port",
+          "steps": [
+            "Try a different Ethernet cable",
+            "Try a different port on the switch",
+            "Check for electromagnetic interference"
+          ]
+        }
+      ]
+    }
+  ]
+}

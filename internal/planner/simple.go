@@ -79,6 +79,8 @@ func (p *SimplePlanner) Plan(ctx context.Context, intent planner.Intent, snapsho
 		return p.planBridgeStatus(intent)
 	case "diagnose":
 		return p.planDiagnose(intent)
+	case "suggest":
+		return p.planSuggest(intent)
 	default:
 		return types.Plan{}, fmt.Errorf("unsupported intent: %s", intent.Name)
 	}
@@ -573,6 +575,33 @@ func (p *SimplePlanner) planBridgeStatus(intent planner.Intent) (types.Plan, err
 		Intent: "Show bridge status",
 		Steps:  []types.Task{{ID: types.TaskID("bridge-status"), Tool: "bridge.status"}},
 		Risk:   types.RiskLow,
+	}, nil
+}
+
+func (p *SimplePlanner) planSuggest(intent planner.Intent) (types.Plan, error) {
+	problem, _ := intent.Arguments["problem"].(string)
+	if problem == "" {
+		if target, ok := intent.Arguments["target"].(string); ok {
+			problem = target
+		}
+	}
+	if problem == "" {
+		problem = "diagnose"
+	}
+
+	return types.Plan{
+		ID:     types.PlanID("plan-suggest"),
+		Intent: fmt.Sprintf("Suggest solutions for: %s", problem),
+		Steps: []types.Task{
+			{
+				ID:   types.TaskID("suggest"),
+				Tool: "suggest",
+				Arguments: types.ToolInput{
+					"problem": problem,
+				},
+			},
+		},
+		Risk: types.RiskLow,
 	}, nil
 }
 

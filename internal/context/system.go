@@ -54,6 +54,7 @@ var intentDependencies = map[string][]types.ToolID{
 	"package.list":        {"package.list"},
 	"vpn.status":          {"vpn.status"},
 	"bridge.status":       {"bridge.status"},
+	"suggest":             {"interface_status", "ip_address", "route_get", "ping"},
 	"diagnose":         {"network.interface_status", "network.ip_address_get", "network.route_get"},
 }
 

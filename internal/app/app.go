@@ -85,6 +85,7 @@ func New() (*App, error) {
 		packagetools.ListTool{},
 		vpntools.StatusTool{},
 		bridgeTools.StatusTool{},
+		systemtools.SuggestTool{Registry: reg},
 	} {
 		if err := reg.Register(t); err != nil {
 			return nil, err
