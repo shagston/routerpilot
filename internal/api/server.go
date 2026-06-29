@@ -38,18 +38,17 @@ func NewServer(a *app.App) *Server {
 
 func (s *Server) Routes() http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("GET /", webui.Handler())
-	mux.HandleFunc("GET /api", s.handleRoot)
-	mux.HandleFunc("GET /health", s.handleHealth)
-	mux.HandleFunc("GET /events", s.handleEvents)
-	mux.HandleFunc("GET /events/stream", s.handleEventsStream)
-	mux.HandleFunc("POST /intent", s.handleIntent)
-	mux.HandleFunc("POST /plan", s.handlePlan)
-	mux.HandleFunc("GET /tools", s.handleTools)
-	mux.HandleFunc("GET /status", s.handleStatus)
-	mux.HandleFunc("GET /api/config", s.handleConfigGet)
-	mux.HandleFunc("PUT /api/config", s.handleConfigPut)
-	mux.HandleFunc("GET /ws", s.handleWebSocket)
+	mux.HandleFunc("/api", s.handleRoot)
+	mux.HandleFunc("/api/config", s.handleConfig)
+	mux.HandleFunc("/health", s.handleHealth)
+	mux.HandleFunc("/events", s.handleEvents)
+	mux.HandleFunc("/events/stream", s.handleEventsStream)
+	mux.HandleFunc("/intent", s.handleIntent)
+	mux.HandleFunc("/plan", s.handlePlan)
+	mux.HandleFunc("/tools", s.handleTools)
+	mux.HandleFunc("/status", s.handleStatus)
+	mux.HandleFunc("/ws", s.handleWebSocket)
+	mux.Handle("/", webui.Handler())
 	return corsMiddleware(mux)
 }
 
@@ -184,65 +183,66 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) handleConfigGet(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, s.App.Config)
-}
+func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		writeJSON(w, http.StatusOK, s.App.Config)
+	case "PUT":
+		var incoming config.Config
+		if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
+			writeError(w, http.StatusBadRequest, "Invalid JSON")
+			return
+		}
 
-func (s *Server) handleConfigPut(w http.ResponseWriter, r *http.Request) {
-	var incoming config.Config
-	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
-		writeError(w, http.StatusBadRequest, "Invalid JSON")
-		return
-	}
+		cfg := s.App.Config
+		if v := incoming.Server.Port; v != "" {
+			cfg.Server.Port = v
+		}
+		if v := incoming.Server.Host; v != "" {
+			cfg.Server.Host = v
+		}
+		if v := incoming.Planner.Type; v != "" {
+			cfg.Planner.Type = v
+		}
+		if v := incoming.Planner.APIKey; v != "" {
+			cfg.Planner.APIKey = v
+		}
+		if v := incoming.Planner.Endpoint; v != "" {
+			cfg.Planner.Endpoint = v
+		}
+		if v := incoming.Planner.Model; v != "" {
+			cfg.Planner.Model = v
+		}
+		if v := incoming.Logging.Level; v != "" {
+			cfg.Logging.Level = v
+		}
+		if v := incoming.Logging.Format; v != "" {
+			cfg.Logging.Format = v
+		}
+		if v := incoming.Telegram.Token; v != "" {
+			cfg.Telegram.Token = v
+		}
+		if v := incoming.Security.Risk; v != "" {
+			cfg.Security.Risk = v
+		}
+		if len(incoming.Security.Permissions) > 0 {
+			cfg.Security.Permissions = incoming.Security.Permissions
+		}
+		cfg.Security.ReadOnly = incoming.Security.ReadOnly
+		cfg.Security.DryRun = incoming.Security.DryRun
+		if v := incoming.System.PluginDir; v != "" {
+			cfg.System.PluginDir = v
+		}
 
-	// Merge non-zero values into current config
-	cfg := s.App.Config
-	if v := incoming.Server.Port; v != "" {
-		cfg.Server.Port = v
-	}
-	if v := incoming.Server.Host; v != "" {
-		cfg.Server.Host = v
-	}
-	if v := incoming.Planner.Type; v != "" {
-		cfg.Planner.Type = v
-	}
-	if v := incoming.Planner.APIKey; v != "" {
-		cfg.Planner.APIKey = v
-	}
-	if v := incoming.Planner.Endpoint; v != "" {
-		cfg.Planner.Endpoint = v
-	}
-	if v := incoming.Planner.Model; v != "" {
-		cfg.Planner.Model = v
-	}
-	if v := incoming.Logging.Level; v != "" {
-		cfg.Logging.Level = v
-	}
-	if v := incoming.Logging.Format; v != "" {
-		cfg.Logging.Format = v
-	}
-	if v := incoming.Telegram.Token; v != "" {
-		cfg.Telegram.Token = v
-	}
-	if v := incoming.Security.Risk; v != "" {
-		cfg.Security.Risk = v
-	}
-	if len(incoming.Security.Permissions) > 0 {
-		cfg.Security.Permissions = incoming.Security.Permissions
-	}
-	cfg.Security.ReadOnly = incoming.Security.ReadOnly
-	cfg.Security.DryRun = incoming.Security.DryRun
-	if v := incoming.System.PluginDir; v != "" {
-		cfg.System.PluginDir = v
-	}
+		data, err := json.MarshalIndent(cfg, "", "  ")
+		if err == nil {
+			_ = os.WriteFile("routerpilot.json", data, 0644)
+		}
 
-	// Persist to routerpilot.json (best effort)
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err == nil {
-		_ = os.WriteFile("routerpilot.json", data, 0644)
+		writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "config": cfg})
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
-
-	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "config": cfg})
 }
 
 func (s *Server) Serve(addr string) error {
