@@ -10,6 +10,7 @@ UCI_PACKAGE="routerpilot"
 start_service() {
 	config_load "$UCI_PACKAGE"
 
+	# Read defaults from UCI (JSON config overrides these at runtime)
 	local port host log_level read_only dry_run
 	config_get port      general port      "8080"
 	config_get host      general host      "0.0.0.0"
@@ -17,20 +18,14 @@ start_service() {
 	config_get_bool read_only general read_only 1
 	config_get_bool dry_run  general dry_run  0
 
-	local tel_enabled tel_token
-	config_get_bool tel_enabled telegram tel_enabled 0
-	config_get       tel_token  telegram tel_token ""
-
-	# Fallback: read token from /routerpilot.json if UCI is empty
-	if [ -z "$tel_token" ] && [ -f /routerpilot.json ]; then
-		local json_token
-		json_token=$(grep -o '"token"[^"]*"[^"]*"' /routerpilot.json 2>/dev/null | head -1 | cut -d'"' -f4)
-		[ -n "$json_token" ] && tel_token="$json_token" && tel_enabled=1
-	fi
+	local tel_token
+	config_get tel_token telegram tel_token ""
 
 	local llm_type llm_api_key llm_endpoint llm_model
 	config_get llm_type    llm llm_type     "simple"
 	config_get llm_api_key llm llm_api_key  ""
+	config_get llm_endpoint llm llm_endpoint ""
+	config_get llm_model    llm llm_model    ""
 
 	# === Instance 1: HTTP API server ===
 	procd_open_instance
@@ -38,26 +33,19 @@ start_service() {
 	procd_set_param env ROUTERPILOT_PORT="$port"
 	procd_set_param env ROUTERPILOT_HOST="$host"
 	procd_set_param env ROUTERPILOT_LOG_LEVEL="$log_level"
-
 	[ "$read_only" = "1" ] && procd_set_param env ROUTERPILOT_READ_ONLY="true"
 	[ "$dry_run" = "1" ]   && procd_set_param env ROUTERPILOT_DRY_RUN="true"
-
-	if [ "$llm_type" = "llm" ] && [ -n "$llm_api_key" ]; then
-		procd_set_param env ROUTERPILOT_PLANNER="llm"
-		procd_set_param env ROUTERPILOT_API_KEY="$llm_api_key"
-		config_get llm_endpoint llm llm_endpoint ""
-		config_get llm_model    llm llm_model    ""
-		[ -n "$llm_endpoint" ] && procd_set_param env ROUTERPILOT_ENDPOINT="$llm_endpoint"
-		[ -n "$llm_model" ]    && procd_set_param env ROUTERPILOT_MODEL="$llm_model"
-	fi
-
+	[ -n "$llm_type" ]     && procd_set_param env ROUTERPILOT_PLANNER="$llm_type"
+	[ -n "$llm_api_key" ]  && procd_set_param env ROUTERPILOT_API_KEY="$llm_api_key"
+	[ -n "$llm_endpoint" ] && procd_set_param env ROUTERPILOT_ENDPOINT="$llm_endpoint"
+	[ -n "$llm_model" ]    && procd_set_param env ROUTERPILOT_MODEL="$llm_model"
 	procd_set_param respawn 3600 5 0
 	procd_set_param stdout 1
 	procd_set_param stderr 1
 	procd_close_instance
 
 	# === Instance 2: Telegram bot (only if token is set) ===
-	if [ "$tel_enabled" = "1" ] && [ -n "$tel_token" ]; then
+	if [ -n "$tel_token" ]; then
 		procd_open_instance
 		procd_set_param command "$ROUTERPILOT_BIN" telegram
 		procd_set_param env ROUTERPILOT_TELEGRAM_TOKEN="$tel_token"

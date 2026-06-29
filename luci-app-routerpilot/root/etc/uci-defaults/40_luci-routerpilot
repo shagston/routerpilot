@@ -11,17 +11,13 @@ uci -q batch <<EOF
 	set routerpilot.general.dry_run=0
 
 	set routerpilot.telegram=telegram
-	set routerpilot.telegram.tel_enabled=0
 	set routerpilot.telegram.tel_token=""
-	set routerpilot.telegram.tel_allowed_ids=""
 
 	set routerpilot.llm=llm
 	set routerpilot.llm.llm_type=simple
 	set routerpilot.llm.llm_api_key=""
-	set routerpilot.llm.llm_endpoint=https://api.openai.com/v1
-	set routerpilot.llm.llm_model=gpt-4
-
-	set routerpilot.schedule=schedule
+	set routerpilot.llm.llm_endpoint=""
+	set routerpilot.llm.llm_model=""
 
 	commit routerpilot
 EOF

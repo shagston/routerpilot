@@ -82,13 +82,14 @@ func Load(path string) (*Config, error) {
 		path = "routerpilot.json"
 	}
 
+	// Env vars provide defaults (lower priority than JSON file)
+	cfg.overrideFromEnv()
+
 	if data, err := os.ReadFile(path); err == nil {
 		if err := json.Unmarshal(data, cfg); err != nil {
 			return nil, fmt.Errorf("config: failed to parse %s: %w", path, err)
 		}
 	}
-
-	cfg.overrideFromEnv()
 
 	return cfg, nil
 }

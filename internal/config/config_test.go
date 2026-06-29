@@ -45,7 +45,7 @@ func TestLoad_File(t *testing.T) {
 	}
 }
 
-func TestLoad_EnvOverrides(t *testing.T) {
+func TestLoad_FileOverridesEnv(t *testing.T) {
 	tmp := t.TempDir()
 	cfgPath := filepath.Join(tmp, "routerpilot.json")
 	if err := os.WriteFile(cfgPath, []byte(`{"server":{"port":":9999"},"logging":{"level":"debug"}}`), 0644); err != nil {
@@ -58,8 +58,8 @@ func TestLoad_EnvOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.Server.Port != ":7777" {
-		t.Fatalf("expected :7777 (env override), got %s", cfg.Server.Port)
+	if cfg.Server.Port != ":9999" {
+		t.Fatalf("expected :9999 (file overrides env), got %s", cfg.Server.Port)
 	}
 	if cfg.Logging.Level != "debug" {
 		t.Fatalf("expected debug (from file), got %s", cfg.Logging.Level)

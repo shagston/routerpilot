@@ -198,15 +198,22 @@ install_luci() {
 configure() {
 	info "Configuring RouterPilot..."
 
-	# Create UCI config
+	# Create UCI config (defaults overridden by JSON config at runtime)
 	uci -q batch <<-EOF 2>/dev/null || true
 		del uci.routerpilot 2>/dev/null
-		set routerpilot.settings=settings
-		set routerpilot.settings.port=8080
-		set routerpilot.settings.host=0.0.0.0
-		set routerpilot.settings.log_level=info
-		set routerpilot.settings.read_only=1
-		set routerpilot.settings.dry_run=0
+		set routerpilot.general=general
+		set routerpilot.general.port=8080
+		set routerpilot.general.host=0.0.0.0
+		set routerpilot.general.log_level=info
+		set routerpilot.general.read_only=1
+		set routerpilot.general.dry_run=0
+		set routerpilot.telegram=telegram
+		set routerpilot.telegram.tel_token=""
+		set routerpilot.llm=llm
+		set routerpilot.llm.llm_type=simple
+		set routerpilot.llm.llm_api_key=""
+		set routerpilot.llm.llm_endpoint=""
+		set routerpilot.llm.llm_model=""
 		commit routerpilot
 	EOF
 
