@@ -3,11 +3,15 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
     branches: [main]
 
+env:
+  GO_VERSION: "1.22"
+
 jobs:
-  build-and-test:
+  check:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -18,14 +22,87 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - run: go build -buildvcs=false ./...
+      - run: go vet -buildvcs=false ./...
+      - run: go test -buildvcs=false -count=1 ./...
+
+  cross-compile:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            ext: ""
+          - os: linux
+            arch: arm64
+            ext: ""
+          - os: linux
+            arch: mipsle
+            ext: ""
+          - os: windows
+            arch: amd64
+            ext: ".exe"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
           cache: true
 
       - name: Build
-        run: go build -buildvcs=false ./...
+        shell: bash
+        run: |
+          name="routerpilot-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}"
+          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} \
+            go build -buildvcs=false -ldflags="-s -w" -o "$name" ./cmd/routerpilot
+          echo "Built: $name"
 
-      - name: Vet
-        run: go vet -buildvcs=false ./...
+      - name: Strip (Linux)
+        if: ${{ matrix.os == 'linux' }}
+        shell: bash
+        run: |
+          name="routerpilot-${{ matrix.os }}-${{ matrix.arch }}"
+          strip "$name" 2>/dev/null || true
 
-      - name: Test
-        run: go test -buildvcs=false -count=1 ./...
+      - name: Compress
+        shell: bash
+        run: |
+          name="routerpilot-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}"
+          gzip -k -f "$name" 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: routerpilot-${{ matrix.os }}-${{ matrix.arch }}
+          path: routerpilot-${{ matrix.os }}-${{ matrix.arch }}*
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [check, cross-compile]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: routerpilot-*
+          merge-multiple: true
+
+      - name: Generate checksums
+        shell: bash
+        run: sha256sum routerpilot-* > checksums.txt
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            routerpilot-*
+            checksums.txt
+          generate_release_notes: true
