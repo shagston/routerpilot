@@ -17,10 +17,10 @@ func SelectPlanner(reg *registry.ToolRegistry, cfg *config.Config) sdkPlanner.Pl
 	case "simple":
 		return NewSimplePlanner()
 	case "llm":
-		return NewLLMPlanner(reg)
+		return NewLLMPlanner(reg, cfg)
 	default:
 		if cfg.Planner.APIKey != "" {
-			return NewLLMPlanner(reg)
+			return NewLLMPlanner(reg, cfg)
 		}
 		return NewSimplePlanner()
 	}

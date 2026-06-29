@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
+	"github.com/shagston/routerpilot/internal/config"
 	"github.com/shagston/routerpilot/internal/registry"
 	"github.com/shagston/routerpilot/sdk/planner"
 	"github.com/shagston/routerpilot/sdk/types"
@@ -23,19 +23,19 @@ type LLMPlanner struct {
 	registry   *registry.ToolRegistry
 }
 
-func NewLLMPlanner(reg *registry.ToolRegistry) *LLMPlanner {
-	endpoint := os.Getenv("ROUTERPILOT_ENDPOINT")
+func NewLLMPlanner(reg *registry.ToolRegistry, cfg *config.Config) *LLMPlanner {
+	endpoint := cfg.Planner.Endpoint
 	if endpoint == "" {
 		endpoint = "https://api.openai.com/v1/chat/completions"
 	}
 
-	model := os.Getenv("ROUTERPILOT_MODEL")
+	model := cfg.Planner.Model
 	if model == "" {
 		model = "gpt-4o"
 	}
 
 	return &LLMPlanner{
-		apiKey:     os.Getenv("ROUTERPILOT_API_KEY"),
+		apiKey:     cfg.Planner.APIKey,
 		endpoint:   endpoint,
 		model:      model,
 		toolSchema: FormatToolSchemas(reg),

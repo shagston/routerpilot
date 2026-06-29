@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/shagston/routerpilot/internal/config"
 	"github.com/shagston/routerpilot/internal/registry"
 	"github.com/shagston/routerpilot/sdk/planner"
 	"github.com/shagston/routerpilot/sdk/types"
@@ -42,7 +43,8 @@ func TestLLMPlannerPlanParsesAndValidatesJSONResponse(t *testing.T) {
 	}))
 	defer server.Close()
 
-	p := NewLLMPlanner(reg)
+	cfg := config.Default()
+	p := NewLLMPlanner(reg, cfg)
 	p.apiKey = "test-key"
 	p.endpoint = server.URL
 
@@ -89,7 +91,8 @@ func TestLLMPlannerRejectsInvalidPlanFromModel(t *testing.T) {
 	}))
 	defer server.Close()
 
-	p := NewLLMPlanner(reg)
+	cfg2 := config.Default()
+	p := NewLLMPlanner(reg, cfg2)
 	p.apiKey = "test-key"
 	p.endpoint = server.URL
 
