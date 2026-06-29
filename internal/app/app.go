@@ -77,6 +77,7 @@ func New() (*App, error) {
 		dnstools.FlushTool{},
 		wifitools.ScanTool{},
 		wifitools.StatusTool{},
+		wifitools.ConnectTool{},
 		dhcptools.LeasesTool{},
 		firewalltools.StatusTool{},
 		firewalltools.ReloadTool{},

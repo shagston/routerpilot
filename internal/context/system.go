@@ -40,6 +40,7 @@ var intentDependencies = map[string][]types.ToolID{
 	"system.processes":    {"system.processes"},
 	"wifi.scan":           {"wifi.scan"},
 	"wifi.status":         {"wifi.status"},
+	"wifi.connect":        {"wifi.status"},
 	"dns.lookup":          {"dns.lookup", "dns.status"},
 	"dns.status":          {"dns.status"},
 	"dns.flush":           {"dns.status"},

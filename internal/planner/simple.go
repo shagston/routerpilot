@@ -61,6 +61,8 @@ func (p *SimplePlanner) Plan(ctx context.Context, intent planner.Intent, snapsho
 		return p.planSystemProcesses(intent)
 	case "wifi.status":
 		return p.planWifiStatus(intent)
+	case "wifi.connect":
+		return p.planWiFiConnect(intent)
 	case "network.traceroute":
 		return p.planTraceroute(intent)
 	case "network.neighbors":
@@ -462,6 +464,43 @@ func (p *SimplePlanner) planWifiStatus(intent planner.Intent) (types.Plan, error
 
 	if iface, ok := intent.Arguments["interface"].(string); ok && iface != "" {
 		plan.Steps[0].Arguments = types.ToolInput{"interface": iface}
+	}
+
+	return plan, nil
+}
+
+func (p *SimplePlanner) planWiFiConnect(intent planner.Intent) (types.Plan, error) {
+	ssid, ok := intent.Arguments["ssid"].(string)
+	if !ok || ssid == "" {
+		return types.Plan{}, fmt.Errorf("wifi.connect intent requires 'ssid' argument")
+	}
+
+	plan := types.Plan{
+		ID:     types.PlanID("plan-wifi-connect"),
+		Intent: fmt.Sprintf("Connect to Wi-Fi network %s", ssid),
+		Steps: []types.Task{
+			{
+				ID:      types.TaskID("wifi-before"),
+				Tool:    "wifi.status",
+				Purpose: types.TaskPurposeContext,
+			},
+			{
+				ID:   types.TaskID("wifi-connect"),
+				Tool: "wifi.connect",
+				Arguments: types.ToolInput{
+					"ssid": ssid,
+				},
+				Dependencies: []types.TaskID{"wifi-before"},
+			},
+		},
+		Risk: types.RiskMedium,
+	}
+
+	if password, ok := intent.Arguments["password"].(string); ok && password != "" {
+		plan.Steps[1].Arguments["password"] = password
+	}
+	if iface, ok := intent.Arguments["interface"].(string); ok && iface != "" {
+		plan.Steps[1].Arguments["interface"] = iface
 	}
 
 	return plan, nil
