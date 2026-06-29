@@ -2,60 +2,9 @@
 
 var baseUrl = 'http://' + window.location.hostname + ':8080';
 
-return L.view.extend({
-	render: function() {
-		var view = E('div', { 'class': 'cbi-map' }, [
-			E('h2', { 'class': 'cbi-map-title' }, _('RouterPilot — Chat'))
-		]);
-
-		var chatBox = E('div', {
-			'id': 'rp-chat-box',
-			'style': 'background:#fff;border:1px solid #ccc;border-radius:4px;padding:8px;height:50vh;overflow-y:auto;margin-bottom:8px;font-family:monospace;font-size:13px;line-height:1.5;white-space:pre-wrap'
-		});
-		view.appendChild(chatBox);
-
-		var inputRow = E('div', { 'class': 'cbi-value', 'style': 'margin-bottom:0' }, [
-			E('label', { 'class': 'cbi-value-title' }, _('Message')),
-			E('div', { 'class': 'cbi-value-field', 'style': 'display:flex;gap:8px' }, [
-				E('input', {
-					'id': 'rp-chat-input',
-					'type': 'text',
-					'style': 'flex:1;max-width:none',
-					'placeholder': _('Type a command or question...'),
-					'keydown': function(ev) {
-						if (ev.key === 'Enter') sendChat();
-					}
-				}),
-				E('button', {
-					'id': 'rp-chat-send',
-					'class': 'btn cbi-button cbi-button-action',
-					'click': function() { sendChat(); }
-				}, _('Send'))
-			])
-		]);
-
-		view.appendChild(inputRow);
-
-		var quickRow = E('div', { 'class': 'cbi-value', 'style': 'margin-bottom:0' }, [
-			E('label', { 'class': 'cbi-value-title' }, _('Quick')),
-			E('div', { 'class': 'cbi-value-field', 'style': 'display:flex;gap:4px;flex-wrap:wrap' }, [
-				E('button', { 'class': 'btn cbi-button cbi-button-neutral', 'click': function() { quickChat('ping 8.8.8.8'); } }, 'ping 8.8.8.8'),
-				E('button', { 'class': 'btn cbi-button cbi-button-neutral', 'click': function() { quickChat('diagnose'); } }, 'diagnose'),
-				E('button', { 'class': 'btn cbi-button cbi-button-neutral', 'click': function() { quickChat('system.info'); } }, 'system.info'),
-				E('button', { 'class': 'btn cbi-button cbi-button-neutral', 'click': function() { quickChat('dns.lookup google.com'); } }, 'dns.lookup'),
-				E('button', { 'class': 'btn cbi-button cbi-button-neutral', 'click': function() { quickChat('wifi.scan'); } }, 'wifi.scan'),
-				E('button', { 'class': 'btn cbi-button cbi-button-neutral', 'click': function() { quickChat('suggest fixes'); } }, 'suggest fixes')
-			])
-		]);
-
-		view.appendChild(quickRow);
-
-		return view;
-	}
-});
-
 function addMessage(who, text, cls) {
 	var box = document.getElementById('rp-chat-box');
+	if (!box) return;
 	var d = new Date();
 	var ts = d.toLocaleTimeString();
 	var entry = document.createElement('div');
@@ -81,6 +30,7 @@ function addMessage(who, text, cls) {
 
 function appendResult(data) {
 	var box = document.getElementById('rp-chat-box');
+	if (!box) return;
 	var entry = document.createElement('div');
 	entry.style.marginBottom = '6px';
 	entry.style.padding = '4px 8px';
@@ -101,14 +51,6 @@ function appendResult(data) {
 	box.scrollTop = box.scrollHeight;
 }
 
-function sendChat() {
-	var input = document.getElementById('rp-chat-input');
-	var text = input.value.trim();
-	if (!text) return;
-	input.value = '';
-	quickChat(text);
-}
-
 function quickChat(text) {
 	addMessage('me', text);
 
@@ -117,11 +59,7 @@ function quickChat(text) {
 	var intentArgs = {};
 
 	if (parts.length > 1) {
-		if (intentName === 'ping' || intentName === 'dns.lookup' || intentName === 'network.traceroute') {
-			intentArgs.target = parts[1];
-		} else {
-			intentArgs.target = parts[1];
-		}
+		intentArgs.target = parts.slice(1).join(' ');
 	}
 
 	addMessage('system', '→ executing ' + intentName + '...');
@@ -149,5 +87,85 @@ function quickChat(text) {
 
 function escapeHTML(s) {
 	if (typeof s !== 'string') s = String(s);
-	return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+return L.view.extend({
+	render: function() {
+		var self = this;
+		var view = E('div', { 'class': 'cbi-map' }, [
+			E('h2', { 'class': 'cbi-map-title' }, _('RouterPilot — Chat'))
+		]);
+
+		var chatBox = E('div', {
+			'id': 'rp-chat-box',
+			'style': 'background:#fff;border:1px solid #ccc;border-radius:4px;padding:8px;height:50vh;overflow-y:auto;margin-bottom:8px;font-family:monospace;font-size:13px;line-height:1.5;white-space:pre-wrap'
+		});
+		view.appendChild(chatBox);
+
+		var wrapper = E('div', { 'id': 'rp-chat-ui' }, [
+			E('div', { 'class': 'cbi-value', 'style': 'margin-bottom:0' }, [
+				E('label', { 'class': 'cbi-value-title' }, _('Message')),
+				E('div', { 'class': 'cbi-value-field', 'style': 'display:flex;gap:8px' }, [
+					E('input', {
+						'id': 'rp-chat-input',
+						'type': 'text',
+						'style': 'flex:1;max-width:none',
+						'placeholder': _('Type a command or question...')
+					}),
+					E('button', {
+						'id': 'rp-chat-send',
+						'class': 'btn cbi-button cbi-button-action'
+					}, _('Send'))
+				])
+			]),
+			E('div', { 'class': 'cbi-value', 'style': 'margin-bottom:0' }, [
+				E('label', { 'class': 'cbi-value-title' }, _('Quick')),
+				E('div', { 'class': 'cbi-value-field', 'style': 'display:flex;gap:4px;flex-wrap:wrap' }, [
+					E('button', { 'class': 'btn cbi-button cbi-button-neutral', 'data-quick': 'ping 8.8.8.8' }, 'ping 8.8.8.8'),
+					E('button', { 'class': 'btn cbi-button cbi-button-neutral', 'data-quick': 'diagnose' }, 'diagnose'),
+					E('button', { 'class': 'btn cbi-button cbi-button-neutral', 'data-quick': 'system.info' }, 'system.info'),
+					E('button', { 'class': 'btn cbi-button cbi-button-neutral', 'data-quick': 'dns.lookup google.com' }, 'dns.lookup'),
+					E('button', { 'class': 'btn cbi-button cbi-button-neutral', 'data-quick': 'wifi.scan' }, 'wifi.scan'),
+					E('button', { 'class': 'btn cbi-button cbi-button-neutral', 'data-quick': 'suggest fixes' }, 'suggest fixes')
+				])
+			])
+		]);
+		view.appendChild(wrapper);
+
+		// Delegate events
+		setTimeout(function() { self.bindEvents(); }, 0);
+
+		return view;
+	},
+
+	bindEvents: function() {
+		var ui = document.getElementById('rp-chat-ui');
+		if (!ui) return;
+
+		ui.addEventListener('click', function(e) {
+			var el = e.target;
+			if (el.id === 'rp-chat-send') {
+				sendChat();
+			} else if (el.hasAttribute('data-quick')) {
+				quickChat(el.getAttribute('data-quick'));
+			}
+		});
+
+		var input = document.getElementById('rp-chat-input');
+		if (input) {
+			input.addEventListener('keydown', function(ev) {
+				if (ev.key === 'Enter') sendChat();
+			});
+		}
+	}
+});
+
+function sendChat() {
+	var input = document.getElementById('rp-chat-input');
+	if (!input) return;
+	var text = input.value.trim();
+	if (!text) return;
+	input.value = '';
+	quickChat(text);
 }
