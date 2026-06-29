@@ -132,6 +132,7 @@ CLI / API / WebSocket / Telegram / Web UI
 | Tool | Description | Example |
 |------|-------------|---------|
 | `dhcp.leases` | List active DHCP leases | `routerpilot plan dhcp.leases` |
+| `dhcp.server` | Show DHCP server config | `routerpilot plan dhcp.server` |
 
 ### Firewall
 

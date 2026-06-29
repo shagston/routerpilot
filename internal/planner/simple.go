@@ -47,6 +47,8 @@ func (p *SimplePlanner) Plan(ctx context.Context, intent planner.Intent, snapsho
 		return p.planDNSFlush(intent)
 	case "dhcp.leases":
 		return p.planDHCPLeases(intent)
+	case "dhcp.server":
+		return p.planDHCPServer(intent)
 	case "firewall.status":
 		return p.planFirewallStatus(intent)
 	case "firewall.reload":
@@ -379,6 +381,15 @@ func (p *SimplePlanner) planDNSFlush(intent planner.Intent) (types.Plan, error) 
 			},
 		},
 		Risk: types.RiskLow,
+	}, nil
+}
+
+func (p *SimplePlanner) planDHCPServer(intent planner.Intent) (types.Plan, error) {
+	return types.Plan{
+		ID:     types.PlanID("plan-dhcp-server"),
+		Intent: "Show DHCP server config",
+		Steps:  []types.Task{{ID: types.TaskID("dhcp-server"), Tool: "dhcp.server"}},
+		Risk:   types.RiskLow,
 	}, nil
 }
 

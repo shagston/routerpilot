@@ -89,6 +89,7 @@ func NewWithConfig(cfg *config.Config) (*App, error) {
 		wifitools.StatusTool{},
 		wifitools.ConnectTool{},
 		dhcptools.LeasesTool{},
+		dhcptools.ServerTool{},
 		firewalltools.StatusTool{},
 		firewalltools.ReloadTool{},
 		servicetools.ListTool{},
