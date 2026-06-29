@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -27,6 +28,8 @@ func NewLLMPlanner(reg *registry.ToolRegistry, cfg *config.Config) *LLMPlanner {
 	endpoint := cfg.Planner.Endpoint
 	if endpoint == "" {
 		endpoint = "https://api.openai.com/v1/chat/completions"
+	} else if !strings.HasSuffix(endpoint, "/chat/completions") {
+		endpoint = strings.TrimRight(endpoint, "/") + "/chat/completions"
 	}
 
 	model := cfg.Planner.Model
@@ -126,12 +129,13 @@ Do not include any explanations or markdown blocks.`, p.toolSchema)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return types.Plan{}, fmt.Errorf("LLM API returned status: %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return types.Plan{}, fmt.Errorf("LLM API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var chatResp chatResponse
 	if err := json.NewDecoder(resp.Body).Decode(&chatResp); err != nil {
-		return types.Plan{}, err
+		return types.Plan{}, fmt.Errorf("LLM API response parse error: %w (endpoint: %s)", err, p.endpoint)
 	}
 
 	if len(chatResp.Choices) == 0 {

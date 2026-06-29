@@ -20,6 +20,11 @@ start_service() {
 
 	local tel_token
 	config_get tel_token telegram tel_token ""
+	if [ -z "$tel_token" ] && [ -f /routerpilot.json ]; then
+		local json_token
+		json_token=$(grep -o '"token"[[:space:]]*:[[:space:]]*"[^"]*"' /routerpilot.json 2>/dev/null | head -1 | cut -d'"' -f4)
+		[ -n "$json_token" ] && tel_token="$json_token"
+	fi
 
 	local llm_type llm_api_key llm_endpoint llm_model
 	config_get llm_type    llm llm_type     "simple"
