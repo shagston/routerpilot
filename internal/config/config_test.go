@@ -76,6 +76,63 @@ func TestLoad_MissingFile(t *testing.T) {
 	}
 }
 
+func TestDefaultDryRun(t *testing.T) {
+	cfg := Default()
+	if cfg.Security.DryRun {
+		t.Fatal("expected dry_run to default to false")
+	}
+	if cfg.Security.ReadOnly {
+		t.Fatal("expected read_only to default to false")
+	}
+}
+
+func TestLoadReadOnly(t *testing.T) {
+	tmp := t.TempDir()
+	cfgPath := filepath.Join(tmp, "routerpilot.json")
+	if err := os.WriteFile(cfgPath, []byte(`{"security":{"read_only":true}}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(cfgPath)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !cfg.Security.ReadOnly {
+		t.Fatal("expected read_only to be true")
+	}
+}
+
+func TestLoadDryRun(t *testing.T) {
+	tmp := t.TempDir()
+	cfgPath := filepath.Join(tmp, "routerpilot.json")
+	if err := os.WriteFile(cfgPath, []byte(`{"security":{"dry_run":true}}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(cfgPath)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !cfg.Security.DryRun {
+		t.Fatal("expected dry_run to be true")
+	}
+}
+
+func TestLoadDryRunEnvOverride(t *testing.T) {
+	t.Setenv("ROUTERPILOT_DRY_RUN", "true")
+	t.Setenv("ROUTERPILOT_READ_ONLY", "true")
+
+	cfg := Default()
+	cfg.overrideFromEnv()
+
+	if !cfg.Security.DryRun {
+		t.Fatal("expected dry_run to be true from env")
+	}
+	if !cfg.Security.ReadOnly {
+		t.Fatal("expected read_only to be true from env")
+	}
+}
+
 func TestOverrideFromEnv(t *testing.T) {
 	cfg := Default()
 

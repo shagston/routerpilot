@@ -17,7 +17,9 @@
   },
   "security": {
     "risk": "low",
-    "permissions": ["read", "write"]
+    "permissions": ["read", "write"],
+    "dry_run": false,
+    "read_only": false
   },
   "system": {
     "plugin_dir": "plugins"

@@ -106,7 +106,11 @@ func NewWithConfig(cfg *config.Config) (*App, error) {
 
 	bus := eventbus.NewBus()
 	validateCfg := parsePermissionsConfig(cfg)
-	engine := runtimeengine.NewEngine(reg, bus, runtimeengine.WithValidator(safety.NewValidator(reg, validateCfg)))
+	engine := runtimeengine.NewEngine(reg, bus,
+		runtimeengine.WithValidator(safety.NewValidator(reg, validateCfg)),
+		runtimeengine.WithDryRun(cfg.Security.DryRun),
+		runtimeengine.WithReadOnly(cfg.Security.ReadOnly),
+	)
 
 	plugLoader := pluginloader.NewLoader(cfg.System.PluginDir)
 	if err := plugLoader.LoadAll(context.Background(), reg); err != nil {

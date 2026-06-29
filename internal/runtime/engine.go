@@ -19,6 +19,8 @@ type Engine struct {
 	validator Validator
 	eventSeq  uint64
 	now       func() time.Time
+	dryRun    bool
+	readOnly  bool
 }
 
 type Option func(*Engine)
@@ -48,6 +50,18 @@ func WithClock(now func() time.Time) Option {
 func WithValidator(validator Validator) Option {
 	return func(engine *Engine) {
 		engine.validator = validator
+	}
+}
+
+func WithDryRun(dryRun bool) Option {
+	return func(engine *Engine) {
+		engine.dryRun = dryRun
+	}
+}
+
+func WithReadOnly(readOnly bool) Option {
+	return func(engine *Engine) {
+		engine.readOnly = readOnly
 	}
 }
 
@@ -193,15 +207,29 @@ func (e *Engine) executeTask(ctx context.Context, execution types.Execution, tas
 		return types.ToolResult{Success: false, Error: err.Error()}, err
 	}
 
-	if dryRun && t.Metadata().SupportsDryRun {
+	// Apply global read-only mode: block write/admin tools
+	if e.readOnly {
+		for _, perm := range t.Metadata().Permissions {
+			if perm == types.PermissionWrite || perm == types.PermissionAdmin {
+				err := fmt.Errorf("%w: tool %s requires %s in read-only mode", types.ErrPermissionDenied, task.Tool, perm)
+				e.publish(execution, task.ID, task.Tool, "task.failed", types.SeverityError, map[string]any{"error": err.Error()})
+				return types.ToolResult{Success: false, Error: err.Error()}, err
+			}
+		}
+	}
+
+	// Apply global dry-run: skip execution for all tools, return dry-run result
+	effectiveDryRun := dryRun || e.dryRun
+	if effectiveDryRun {
 		e.publish(execution, task.ID, task.Tool, "tool.dry_run", types.SeverityInfo, map[string]any{
 			"tool":   task.Tool,
 			"inputs": task.Arguments,
+			"global": e.dryRun,
 		})
 		e.publish(execution, task.ID, task.Tool, "task.completed", types.SeverityInfo, nil)
 		return types.ToolResult{
 			Success: true,
-			Output:  types.ToolOutput{"dry_run": true, "tool": string(task.Tool)},
+			Output:  types.ToolOutput{"dry_run": true, "tool": string(task.Tool), "global": e.dryRun},
 		}, nil
 	}
 

@@ -40,6 +40,8 @@ type TelegramConfig struct {
 type SecurityConfig struct {
 	Risk        string   `json:"risk"`
 	Permissions []string `json:"permissions"`
+	DryRun      bool     `json:"dry_run"`
+	ReadOnly    bool     `json:"read_only"`
 }
 
 type SystemConfig struct {
@@ -124,6 +126,12 @@ func (c *Config) overrideFromEnv() {
 	}
 	if v := os.Getenv("ROUTERPILOT_PERMISSIONS"); v != "" {
 		c.Security.Permissions = strings.Split(v, ",")
+	}
+	if v := os.Getenv("ROUTERPILOT_DRY_RUN"); v == "true" || v == "1" {
+		c.Security.DryRun = true
+	}
+	if v := os.Getenv("ROUTERPILOT_READ_ONLY"); v == "true" || v == "1" {
+		c.Security.ReadOnly = true
 	}
 	if v := os.Getenv("ROUTERPILOT_PLUGIN_DIR"); v != "" {
 		c.System.PluginDir = v
