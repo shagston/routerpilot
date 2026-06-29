@@ -1,21 +1,25 @@
 package planner
 
 import (
-	"os"
 	"strings"
 
+	"github.com/shagston/routerpilot/internal/config"
 	"github.com/shagston/routerpilot/internal/registry"
 	sdkPlanner "github.com/shagston/routerpilot/sdk/planner"
 )
 
-func SelectPlanner(reg *registry.ToolRegistry) sdkPlanner.Planner {
-	switch strings.ToLower(os.Getenv("ROUTERPILOT_PLANNER")) {
+func SelectPlanner(reg *registry.ToolRegistry, cfg *config.Config) sdkPlanner.Planner {
+	if cfg == nil {
+		return NewSimplePlanner()
+	}
+
+	switch strings.ToLower(cfg.Planner.Type) {
 	case "simple":
 		return NewSimplePlanner()
 	case "llm":
 		return NewLLMPlanner(reg)
 	default:
-		if os.Getenv("ROUTERPILOT_API_KEY") != "" {
+		if cfg.Planner.APIKey != "" {
 			return NewLLMPlanner(reg)
 		}
 		return NewSimplePlanner()

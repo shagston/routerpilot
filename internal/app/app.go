@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 	"time"
 
+	"github.com/shagston/routerpilot/internal/config"
 	ctxengine "github.com/shagston/routerpilot/internal/context"
 	eventbus "github.com/shagston/routerpilot/internal/events"
 	"github.com/shagston/routerpilot/internal/logger"
@@ -33,6 +33,7 @@ import (
 )
 
 type App struct {
+	Config   *config.Config
 	Registry *registry.ToolRegistry
 	Events   *eventbus.Bus
 	Runtime  *runtimeengine.Engine
@@ -49,7 +50,15 @@ func (e *SafetyError) Error() string {
 }
 
 func New() (*App, error) {
-	log := logger.New()
+	cfg, err := config.Load("")
+	if err != nil {
+		return nil, fmt.Errorf("load config: %w", err)
+	}
+	return NewWithConfig(cfg)
+}
+
+func NewWithConfig(cfg *config.Config) (*App, error) {
+	log := logger.NewWithOptions(cfg.Logging.Level, cfg.Logging.Format)
 	reg := registry.NewToolRegistry()
 
 	netProv := network.NewLinuxProvider()
@@ -95,24 +104,21 @@ func New() (*App, error) {
 	}
 
 	bus := eventbus.NewBus()
-	validateCfg := parsePermissionsConfig()
+	validateCfg := parsePermissionsConfig(cfg)
 	engine := runtimeengine.NewEngine(reg, bus, runtimeengine.WithValidator(safety.NewValidator(reg, validateCfg)))
 
-	plugDir := os.Getenv("ROUTERPILOT_PLUGIN_DIR")
-	if plugDir == "" {
-		plugDir = "plugins"
-	}
-	plugLoader := pluginloader.NewLoader(plugDir)
+	plugLoader := pluginloader.NewLoader(cfg.System.PluginDir)
 	if err := plugLoader.LoadAll(context.Background(), reg); err != nil {
 		return nil, fmt.Errorf("plugin loading: %w", err)
 	}
 
 	log.Info("RouterPilot initialized",
 		slog.Int("tools", len(reg.List())),
-		slog.String("plugins_dir", plugDir),
+		slog.String("plugins_dir", cfg.System.PluginDir),
 	)
 
 	return &App{
+		Config:   cfg,
 		Registry: reg,
 		Events:   bus,
 		Runtime:  engine,
@@ -127,8 +133,8 @@ func (a *App) ExecuteIntent(ctx context.Context, intent sdkPlanner.Intent, inter
 	})
 
 	ctxProvider := ctxengine.NewSystemContextProvider(a.Registry, a.Events)
-	guard := safety.NewSimpleSafetyGuard(parseRiskLevel())
-	planGen := planner.SelectPlanner(a.Registry)
+	guard := safety.NewSimpleSafetyGuard(parseRiskLevel(a.Config))
+	planGen := planner.SelectPlanner(a.Registry, a.Config)
 
 	const maxAttempts = 3
 	var lastExecution types.Execution
@@ -210,7 +216,7 @@ func (a *App) publishEvent(eventType types.EventType, severity types.Severity, p
 
 func (a *App) PreviewPlan(ctx context.Context, intent sdkPlanner.Intent) (types.ContextSnapshot, types.Plan, error) {
 	ctxProvider := ctxengine.NewSystemContextProvider(a.Registry, a.Events)
-	planGen := planner.SelectPlanner(a.Registry)
+	planGen := planner.SelectPlanner(a.Registry, a.Config)
 
 	snapshot, err := ctxProvider.Build(ctx, intent)
 	if err != nil {
@@ -233,22 +239,15 @@ func snapshotKeys(snapshot types.ContextSnapshot) []string {
 	return keys
 }
 
-func parsePermissionsConfig() safety.Config {
+func parsePermissionsConfig(cfg *config.Config) safety.Config {
 	permMap := map[string]types.Permission{
 		"read":  types.PermissionRead,
 		"write": types.PermissionWrite,
 		"admin": types.PermissionAdmin,
 	}
 
-	raw := os.Getenv("ROUTERPILOT_PERMISSIONS")
-	if raw == "" {
-		return safety.Config{
-			Permissions: []types.Permission{types.PermissionRead, types.PermissionWrite},
-		}
-	}
-
 	var perms []types.Permission
-	for _, p := range strings.Split(raw, ",") {
+	for _, p := range cfg.Security.Permissions {
 		p = strings.TrimSpace(strings.ToLower(p))
 		if perm, ok := permMap[p]; ok {
 			perms = append(perms, perm)
@@ -260,8 +259,8 @@ func parsePermissionsConfig() safety.Config {
 	return safety.Config{Permissions: perms}
 }
 
-func parseRiskLevel() types.RiskLevel {
-	switch strings.ToLower(os.Getenv("ROUTERPILOT_RISK")) {
+func parseRiskLevel(cfg *config.Config) types.RiskLevel {
+	switch strings.ToLower(cfg.Security.Risk) {
 	case "low":
 		return types.RiskLow
 	case "medium":

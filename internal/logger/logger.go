@@ -16,12 +16,20 @@ type Logger struct {
 }
 
 func New() *Logger {
-	var h slog.Handler
 	format := strings.ToLower(os.Getenv("ROUTERPILOT_LOG_FORMAT"))
-	level := parseLevel(os.Getenv("ROUTERPILOT_LOG_LEVEL"))
+	levelStr := os.Getenv("ROUTERPILOT_LOG_LEVEL")
+	return newLogger(format, levelStr)
+}
 
+func NewWithOptions(level, format string) *Logger {
+	return newLogger(format, level)
+}
+
+func newLogger(format, levelStr string) *Logger {
+	level := parseLevel(levelStr)
 	opts := &slog.HandlerOptions{Level: level}
 
+	var h slog.Handler
 	if format == "json" {
 		h = slog.NewJSONHandler(os.Stderr, opts)
 	} else {
