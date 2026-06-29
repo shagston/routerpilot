@@ -18,17 +18,16 @@ return L.view.extend({
 		var self = this;
 		fetch(baseUrl + '/api/config').then(function(r) { return r.json(); }).then(function(cfg) {
 			self.renderTabs(tabs, cfg);
-		}).catch(function() {
-			dom.content(statusEl, E('div', { 'class': 'alert alert-warning' },
-				_('Cannot connect to RouterPilot daemon. Ensure the service is running on port 8080.')
-			));
+		}).catch(function(e) {
+			statusEl.innerHTML = '<div class="alert alert-warning">' +
+				String(_('Cannot connect to RouterPilot daemon (' + String(e) + '). Ensure the service is running on port 8080.')) +
+				'</div>';
 		});
 
 		return view;
 	},
 
 	renderTabs: function(container, cfg) {
-		var self = this;
 		var html = '';
 
 		html += '<div class="cbi-tabmenu">';
@@ -38,22 +37,22 @@ return L.view.extend({
 		html += '</div>';
 
 		html += '<div class="cbi-tab-content" id="rp-tab-general">';
-		html += self.field('text', 'rp_host', 'Host', cfg.server.host || '0.0.0.0');
-		html += self.field('text', 'rp_port', 'Port', cfg.server.port || ':8080');
-		html += self.field('select', 'rp_log_level', 'Log level', cfg.logging.level || 'info', ['debug', 'info', 'warn', 'error']);
-		html += self.field('checkbox', 'rp_read_only', 'Read-only', cfg.security.read_only);
-		html += self.field('checkbox', 'rp_dry_run', 'Dry-run', cfg.security.dry_run);
+		html += v('text', 'rp_host', 'Host', cfg.server.host || '0.0.0.0');
+		html += v('text', 'rp_port', 'Port', cfg.server.port || ':8080');
+		html += v('select', 'rp_log_level', 'Log level', cfg.logging.level || 'info', ['debug', 'info', 'warn', 'error']);
+		html += v('checkbox', 'rp_read_only', 'Read-only', cfg.security.read_only);
+		html += v('checkbox', 'rp_dry_run', 'Dry-run', cfg.security.dry_run);
 		html += '</div>';
 
 		html += '<div class="cbi-tab-content" id="rp-tab-telegram" style="display:none">';
-		html += self.field('text', 'rp_tel_token', 'Bot token', cfg.telegram.token || '', true);
+		html += v('text', 'rp_tel_token', 'Bot token', cfg.telegram.token || '', true);
 		html += '</div>';
 
 		html += '<div class="cbi-tab-content" id="rp-tab-llm" style="display:none">';
-		html += self.field('select', 'rp_planner_type', 'Type', cfg.planner.type || 'simple', ['simple', 'llm']);
-		html += self.field('text', 'rp_planner_key', 'API key', cfg.planner.api_key || '', true);
-		html += self.field('text', 'rp_planner_endpoint', 'Endpoint', cfg.planner.endpoint || 'https://api.openai.com/v1');
-		html += self.field('text', 'rp_planner_model', 'Model', cfg.planner.model || 'gpt-4');
+		html += v('select', 'rp_planner_type', 'Type', cfg.planner.type || 'simple', ['simple', 'llm']);
+		html += v('text', 'rp_planner_key', 'API key', cfg.planner.api_key || '', true);
+		html += v('text', 'rp_planner_endpoint', 'Endpoint', cfg.planner.endpoint || 'https://api.openai.com/v1');
+		html += v('text', 'rp_planner_model', 'Model', cfg.planner.model || 'gpt-4');
 		html += '</div>';
 
 		html += '<div style="margin-top:16px">';
@@ -62,23 +61,25 @@ return L.view.extend({
 
 		container.innerHTML = html;
 		window.rpConfig = cfg;
-	},
-
-	field: function(type, id, label, value, extra) {
-		if (type === 'checkbox') {
-			return '<div class="cbi-value"><label class="cbi-value-title">' + label + '</label><div class="cbi-value-field"><input type="checkbox" id="' + id + '"' + (value ? ' checked' : '') + '></div></div>';
-		}
-		if (type === 'select') {
-			var opts = '';
-			for (var i = 0; i < extra.length; i++) {
-				opts += '<option value="' + extra[i] + '"' + (extra[i] === value ? ' selected' : '') + '>' + extra[i] + '</option>';
-			}
-			return '<div class="cbi-value"><label class="cbi-value-title">' + label + '</label><div class="cbi-value-field"><select id="' + id + '">' + opts + '</select></div></div>';
-		}
-		var pw = extra ? ' type="password"' : ' type="text"';
-		return '<div class="cbi-value"><label class="cbi-value-title">' + label + '</label><div class="cbi-value-field"><input' + pw + ' id="' + id + '" value="' + String(value).replace(/"/g,'&quot;') + '"></div></div>';
 	}
 });
+
+function v(type, id, label, value, opts) {
+	if (type === 'checkbox') {
+		var c = value ? ' checked' : '';
+		return '<div class="cbi-value"><label class="cbi-value-title">' + label + '</label><div class="cbi-value-field"><input type="checkbox" id="' + id + '"' + c + '></div></div>';
+	}
+	if (type === 'select') {
+		var o = '';
+		for (var i = 0; i < opts.length; i++) {
+			o += '<option value="' + opts[i] + '"' + (opts[i] === value ? ' selected' : '') + '>' + opts[i] + '</option>';
+		}
+		return '<div class="cbi-value"><label class="cbi-value-title">' + label + '</label><div class="cbi-value-field"><select id="' + id + '">' + o + '</select></div></div>';
+	}
+	var pw = opts ? ' type="password"' : ' type="text"';
+	var vv = (value != null) ? String(value).replace(/"/g, '&quot;') : '';
+	return '<div class="cbi-value"><label class="cbi-value-title">' + label + '</label><div class="cbi-value-field"><input' + pw + ' id="' + id + '" value="' + vv + '"></div></div>';
+}
 
 function switchRpTab(el) {
 	document.querySelectorAll('#rp-settings-tabs .cbi-tab').forEach(function(t) { t.classList.remove('active'); });
@@ -98,16 +99,16 @@ function saveRpConfig() {
 	cfg.security = cfg.security || {};
 
 	var e = function(id) { return document.getElementById(id); };
-	cfg.server.host = e('rp_host') ? e('rp_host').value : cfg.server.host;
-	cfg.server.port = e('rp_port') ? e('rp_port').value : cfg.server.port;
-	cfg.logging.level = e('rp_log_level') ? e('rp_log_level').value : cfg.logging.level;
-	cfg.security.read_only = e('rp_read_only') ? e('rp_read_only').checked : cfg.security.read_only;
-	cfg.security.dry_run = e('rp_dry_run') ? e('rp_dry_run').checked : cfg.security.dry_run;
-	cfg.telegram.token = e('rp_tel_token') ? e('rp_tel_token').value : cfg.telegram.token;
-	cfg.planner.type = e('rp_planner_type') ? e('rp_planner_type').value : cfg.planner.type;
-	cfg.planner.api_key = e('rp_planner_key') ? e('rp_planner_key').value : cfg.planner.api_key;
-	cfg.planner.endpoint = e('rp_planner_endpoint') ? e('rp_planner_endpoint').value : cfg.planner.endpoint;
-	cfg.planner.model = e('rp_planner_model') ? e('rp_planner_model').value : cfg.planner.model;
+	if (e('rp_host')) cfg.server.host = e('rp_host').value;
+	if (e('rp_port')) cfg.server.port = e('rp_port').value;
+	if (e('rp_log_level')) cfg.logging.level = e('rp_log_level').value;
+	if (e('rp_read_only')) cfg.security.read_only = e('rp_read_only').checked;
+	if (e('rp_dry_run')) cfg.security.dry_run = e('rp_dry_run').checked;
+	if (e('rp_tel_token')) cfg.telegram.token = e('rp_tel_token').value;
+	if (e('rp_planner_type')) cfg.planner.type = e('rp_planner_type').value;
+	if (e('rp_planner_key')) cfg.planner.api_key = e('rp_planner_key').value;
+	if (e('rp_planner_endpoint')) cfg.planner.endpoint = e('rp_planner_endpoint').value;
+	if (e('rp_planner_model')) cfg.planner.model = e('rp_planner_model').value;
 
 	fetch(baseUrl + '/api/config', {
 		method: 'PUT',
