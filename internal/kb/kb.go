@@ -265,7 +265,7 @@ func EvaluateDHCPExhausted(evidence map[string]any) (bool, string) {
 				if total, exists := m["total"]; exists {
 					used := toInt(count)
 					max := toInt(total)
-					if max > 0 && float64(used)/float64(max) > 0.9 {
+					if max > 0 && float64(used)/float64(max) >= 0.9 {
 						return true, fmt.Sprintf("DHCP pool is %.0f%% full (%d/%d)", float64(used)/float64(max)*100, used, max)
 					}
 				}

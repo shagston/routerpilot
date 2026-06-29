@@ -110,32 +110,28 @@ func parseIwinfoInfo(output string, info wifiIface) wifiIface {
 	scanner := bufio.NewScanner(strings.NewReader(output))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if strings.HasPrefix(line, "ESSID:") {
-			info.SSID = strings.Trim(strings.TrimPrefix(line, "ESSID:"), ` "'`)
-		} else if strings.HasPrefix(line, "Mode:") {
-			info.Mode = strings.TrimSpace(strings.TrimPrefix(line, "Mode:"))
-		} else if strings.HasPrefix(line, "Frequency:") {
-			info.Frequency = strings.TrimSpace(strings.TrimPrefix(line, "Frequency:"))
-		} else if strings.HasPrefix(line, "Signal:") {
-			sigStr := strings.TrimPrefix(line, "Signal:")
-			sigStr = strings.TrimSpace(sigStr)
-			parts := strings.Fields(sigStr)
+		if idx := strings.Index(line, "ESSID:"); idx >= 0 {
+			info.SSID = strings.Trim(line[idx+6:], ` "'`)
+		} else if idx := strings.Index(line, "Mode:"); idx >= 0 {
+			info.Mode = strings.TrimSpace(line[idx+5:])
+		} else if idx := strings.Index(line, "Frequency:"); idx >= 0 {
+			info.Frequency = strings.TrimSpace(line[idx+10:])
+		} else if idx := strings.Index(line, "Signal:"); idx >= 0 {
+			parts := strings.Fields(line[idx+7:])
 			if len(parts) > 0 {
 				fmt.Sscanf(parts[0], "%d", &info.Signal)
 			}
-		} else if strings.HasPrefix(line, "Noise:") {
-			noiseStr := strings.TrimPrefix(line, "Noise:")
-			noiseStr = strings.TrimSpace(noiseStr)
-			parts := strings.Fields(noiseStr)
+		} else if idx := strings.Index(line, "Noise:"); idx >= 0 {
+			parts := strings.Fields(line[idx+6:])
 			if len(parts) > 0 {
 				fmt.Sscanf(parts[0], "%d", &info.Noise)
 			}
-		} else if strings.HasPrefix(line, "Bit Rate:") {
-			info.Bitrate = strings.TrimSpace(strings.TrimPrefix(line, "Bit Rate:"))
-		} else if strings.HasPrefix(line, "Channel:") {
-			fmt.Sscanf(line, "Channel:%d", &info.Channel)
-		} else if strings.HasPrefix(line, "MAC:") {
-			info.MAC = strings.TrimSpace(strings.TrimPrefix(line, "MAC:"))
+		} else if idx := strings.Index(line, "Bit Rate:"); idx >= 0 {
+			info.Bitrate = strings.TrimSpace(line[idx+9:])
+		} else if idx := strings.Index(line, "Channel:"); idx >= 0 {
+			fmt.Sscanf(line[idx+8:], "%d", &info.Channel)
+		} else if idx := strings.Index(line, "MAC:"); idx >= 0 {
+			info.MAC = strings.TrimSpace(line[idx+4:])
 		}
 	}
 	info.State = "up"

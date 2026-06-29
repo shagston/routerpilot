@@ -127,24 +127,36 @@ func parseIwinfoScan(output string) []accessPoint {
 				aps = append(aps, current)
 			}
 			current = accessPoint{}
+			if idx := strings.Index(line, "Address:"); idx >= 0 {
+				current.BSSID = strings.TrimSpace(line[idx+8:])
+			}
 			continue
 		}
-		if strings.HasPrefix(line, "ESSID:") {
-			current.SSID = strings.TrimSpace(strings.TrimPrefix(line, "ESSID:"))
+		if strings.Contains(line, "ESSID:") {
+			_, val, _ := strings.Cut(line, "ESSID:")
+			current.SSID = strings.TrimSpace(val)
 			current.SSID = strings.Trim(current.SSID, `"'`)
-		} else if strings.HasPrefix(line, "Address:") {
-			current.BSSID = strings.TrimSpace(strings.TrimPrefix(line, "Address:"))
-		} else if strings.HasPrefix(line, "Channel:") {
-			fmt.Sscanf(line, "Channel:%d", &current.Channel)
-		} else if strings.HasPrefix(line, "Signal:") {
-			sigStr := strings.TrimPrefix(line, "Signal:")
-			sigStr = strings.TrimSpace(sigStr)
-			parts := strings.Fields(sigStr)
-			if len(parts) > 0 {
-				fmt.Sscanf(parts[0], "%d", &current.Signal)
+		} else if strings.Contains(line, "Address:") {
+			_, val, _ := strings.Cut(line, "Address:")
+			current.BSSID = strings.TrimSpace(val)
+		} else if strings.Contains(line, "Channel:") {
+			var ch int
+			fmt.Sscanf(line, "%d", &ch)
+			if ch == 0 {
+				fmt.Sscanf(line, "Channel:%d", &ch)
 			}
-		} else if strings.HasPrefix(line, "Encryption:") {
-			current.Encryption = strings.TrimSpace(strings.TrimPrefix(line, "Encryption:"))
+			current.Channel = ch
+		} else if strings.Contains(line, "Signal:") {
+			_, val, _ := strings.Cut(line, "Signal:")
+			parts := strings.Fields(val)
+			if len(parts) > 0 {
+				var sig int
+				fmt.Sscanf(parts[0], "%d", &sig)
+				current.Signal = sig
+			}
+		} else if strings.Contains(line, "Encryption:") {
+			_, val, _ := strings.Cut(line, "Encryption:")
+			current.Encryption = strings.TrimSpace(val)
 		}
 	}
 	if current.SSID != "" {
