@@ -130,8 +130,31 @@ install_luci() {
 		has_lua=1
 	fi
 
+	# JS-only files (always installed — menu.d, views, init, config)
+	local js_files="
+		htdocs/luci-static/resources/view/routerpilot/dashboard.js:/www/luci-static/resources/view/routerpilot/dashboard.js
+		htdocs/luci-static/resources/view/routerpilot/execute.js:/www/luci-static/resources/view/routerpilot/execute.js
+		htdocs/luci-static/resources/view/routerpilot/chat.js:/www/luci-static/resources/view/routerpilot/chat.js
+		htdocs/luci-static/resources/view/routerpilot/settings.js:/www/luci-static/resources/view/routerpilot/settings.js
+		root/usr/share/luci/menu.d/luci-app-routerpilot.json:/usr/share/luci/menu.d/luci-app-routerpilot.json
+		root/etc/init.d/routerpilot:/etc/init.d/routerpilot
+		root/etc/uci-defaults/40_luci-routerpilot:/etc/uci-defaults/40_luci-routerpilot
+	"
+
+	for entry in $js_files; do
+		local src="${entry%%:*}"
+		local dst="${entry##*:}"
+		mkdir -p "$(dirname "$dst")"
+		local url="$BASE_URL/luci-app-routerpilot/$src"
+		if ! download "$url" "$dst" "$(basename "$dst")"; then
+			err "Failed to download $src"
+			failed=1
+		fi
+	done
+
+	# Lua files (optional — only if Lua runtime is available)
 	if [ -n "$has_lua" ]; then
-		info "Lua runtime found. Installing Lua controller + CBI + templates (no menu.d, avoid duplicates)."
+		info "Lua runtime found. Installing Lua controller + CBI + templates..."
 
 		local lua_files="
 			luasrc/controller/routerpilot.lua:/usr/lib/lua/luci/controller/routerpilot.lua
@@ -153,22 +176,6 @@ install_luci() {
 		done
 	else
 		info "Lua runtime not available — using JS-only mode (menu.d)."
-	fi
-
-	# JS-only files (always installed; menu.d only when Lua is absent)
-	local js_files="
-		htdocs/luci-static/resources/view/routerpilot/dashboard.js:/www/luci-static/resources/view/routerpilot/dashboard.js
-		htdocs/luci-static/resources/view/routerpilot/execute.js:/www/luci-static/resources/view/routerpilot/execute.js
-		htdocs/luci-static/resources/view/routerpilot/chat.js:/www/luci-static/resources/view/routerpilot/chat.js
-		htdocs/luci-static/resources/view/routerpilot/settings.js:/www/luci-static/resources/view/routerpilot/settings.js
-		root/etc/init.d/routerpilot:/etc/init.d/routerpilot
-		root/etc/uci-defaults/40_luci-routerpilot:/etc/uci-defaults/40_luci-routerpilot
-	"
-
-	# menu.d JSON only needed when Lua controller is absent
-	if [ -z "$has_lua" ]; then
-		js_files="$js_files
-			root/usr/share/luci/menu.d/luci-app-routerpilot.json:/usr/share/luci/menu.d/luci-app-routerpilot.json"
 	fi
 
 	for entry in $js_files; do
