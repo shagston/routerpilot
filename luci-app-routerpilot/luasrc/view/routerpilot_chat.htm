@@ -1,0 +1,15 @@
+<%
++#
++# RouterPilot chat view
++# Conversational interface — send intents, see results
++#
+-%>
+<%+header%>
+<div id="view-routerpilot-chat"></div>
+<script type="text/javascript">
+	L.require('view.routerpilot.chat').then(function(view) {
+		var instance = new view();
+		instance.renderInitial(document.getElementById('view-routerpilot-chat'));
+	});
+</script>
+<%+footer%>

@@ -8,23 +8,50 @@ ROUTERPILOT_BIN="/usr/bin/routerpilot"
 UCI_PACKAGE="routerpilot"
 
 start_service() {
-	local port host log_level read_only dry_run
-
 	config_load "$UCI_PACKAGE"
-	config_get port settings port "8080"
-	config_get host settings host "0.0.0.0"
+
+	# General settings
+	local port host log_level read_only dry_run plugin_dir
+	config_get port      settings port      "8080"
+	config_get host      settings host      "0.0.0.0"
 	config_get log_level settings log_level "info"
 	config_get_bool read_only settings read_only 1
-	config_get_bool dry_run settings dry_run 0
+	config_get_bool dry_run  settings dry_run  0
+	config_get plugin_dir   settings plugin_dir "plugins"
+
+	# Telegram settings
+	local telegram_enabled telegram_token telegram_allowed_ids
+	config_get_bool telegram_enabled   telegram enabled 0
+	config_get       telegram_token    telegram token   ""
+	config_get       telegram_allowed_ids telegram allowed_ids ""
+
+	# LLM settings
+	local llm_type llm_api_key llm_endpoint llm_model
+	config_get llm_type    llm type     "simple"
+	config_get llm_api_key llm api_key  ""
+	config_get llm_endpoint llm endpoint ""
+	config_get llm_model   llm model    ""
 
 	procd_open_instance
 	procd_set_param command "$ROUTERPILOT_BIN" serve
 	procd_set_param env ROUTERPILOT_PORT="$port"
 	procd_set_param env ROUTERPILOT_HOST="$host"
 	procd_set_param env ROUTERPILOT_LOG_LEVEL="$log_level"
+	procd_set_param env ROUTERPILOT_PLUGIN_DIR="$plugin_dir"
 
 	[ "$read_only" = "1" ] && procd_set_param env ROUTERPILOT_READ_ONLY="true"
-	[ "$dry_run" = "1" ] && procd_set_param env ROUTERPILOT_DRY_RUN="true"
+	[ "$dry_run" = "1" ]   && procd_set_param env ROUTERPILOT_DRY_RUN="true"
+
+	if [ "$telegram_enabled" = "1" ] && [ -n "$telegram_token" ]; then
+		procd_set_param env ROUTERPILOT_TELEGRAM_TOKEN="$telegram_token"
+	fi
+
+	if [ "$llm_type" = "llm" ] && [ -n "$llm_api_key" ]; then
+		procd_set_param env ROUTERPILOT_PLANNER="llm"
+		procd_set_param env ROUTERPILOT_API_KEY="$llm_api_key"
+		[ -n "$llm_endpoint" ] && procd_set_param env ROUTERPILOT_ENDPOINT="$llm_endpoint"
+		[ -n "$llm_model" ]    && procd_set_param env ROUTERPILOT_MODEL="$llm_model"
+	fi
 
 	procd_set_param respawn 3600 5 0
 	procd_set_param stdout 1
