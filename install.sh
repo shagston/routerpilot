@@ -98,18 +98,23 @@ install_lua_runtime() {
 		return 0
 	fi
 
-	info "Lua runtime not found. Attempting to install via opkg..."
-	if command -v opkg >/dev/null 2>&1; then
-		opkg update 2>/dev/null || true
-		if opkg install lua 2>/dev/null; then
-			info "Lua runtime installed."
-			return 0
+	for pmgr in opkg apk; do
+		if command -v "$pmgr" >/dev/null 2>&1; then
+			info "Lua runtime not found. Attempting to install via $pmgr..."
+			case "$pmgr" in
+				opkg) $pmgr update 2>/dev/null || true; $pmgr install lua 2>/dev/null ;;
+				apk)  $pmgr add lua 2>/dev/null ;;
+			esac
+			if command -v lua >/dev/null 2>&1; then
+				info "Lua runtime installed."
+				return 0
+			fi
+			warn "Could not install Lua via $pmgr."
 		fi
-		warn "Could not install Lua via opkg."
-	else
-		warn "opkg not found — cannot install Lua."
-	fi
+	done
 
+	warn "No package manager (opkg/apk) found or Lua unavailable."
+	warn ""
 	warn "LuCI will use JS-only mode (menu.d). Lua-based features (CBI settings) will be unavailable."
 	warn "The web UI on port 8080 will still work."
 	return 1
