@@ -47,6 +47,14 @@ func (p *subprocessPlugin) Close(ctx context.Context) error {
 	return nil
 }
 
+func (p *subprocessPlugin) Initialize(ctx context.Context, rt plugin.RuntimeContext) error {
+	return nil
+}
+
+func (p *subprocessPlugin) Shutdown(ctx context.Context) error {
+	return nil
+}
+
 type subprocessTool struct {
 	plugin *subprocessPlugin
 }

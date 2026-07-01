@@ -1,0 +1,57 @@
+{
+  "policies": [
+    {
+      "id": "allow-read-low",
+      "description": "Allow read capabilities with low risk",
+      "effect": "allow",
+      "match": {
+        "permissions": ["read"],
+        "risk": ["low"],
+        "capabilities": ["*"]
+      }
+    },
+    {
+      "id": "allow-write-medium",
+      "description": "Allow write capabilities with medium risk for admin agents",
+      "effect": "allow",
+      "match": {
+        "permissions": ["write"],
+        "risk": ["low", "medium"],
+        "capabilities": ["*"]
+      },
+      "condition": {
+        "agent_permissions": ["write", "admin"]
+      }
+    },
+    {
+      "id": "deny-critical-default",
+      "description": "Deny critical risk capabilities by default",
+      "effect": "deny",
+      "match": {
+        "risk": ["critical"]
+      }
+    },
+    {
+      "id": "deny-reboot-default",
+      "description": "Deny system reboot to read-only agents",
+      "effect": "deny",
+      "match": {
+        "capabilities": ["system.reboot"]
+      },
+      "condition": {
+        "agent_permissions": ["read"]
+      }
+    },
+    {
+      "id": "allow-admin-all",
+      "description": "Allow admin agents to perform any capability",
+      "effect": "allow",
+      "match": {
+        "capabilities": ["*"]
+      },
+      "condition": {
+        "agent_permissions": ["admin"]
+      }
+    }
+  ]
+}

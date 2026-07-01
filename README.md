@@ -2,17 +2,18 @@
 
 > **AI-native runtime for deterministic network automation.**
 
-RouterPilot transforms intent into deterministic, auditable, and safe network operations.  
+RouterPilot transforms natural language intent into auditable, safe network operations.  
 Separates **planning** (what should happen) from **execution** (how it happens safely).
 
-**30 built-in tools** · REST API · WebSocket · Web UI · Telegram Bot · Plugin system · OpenWrt-ready
+**33 built-in tools** · REST API · WebSocket · Web UI · Telegram Bot · Plugin system · OpenWrt-ready  
+**Zero external dependencies** — only Go standard library.
 
 ---
 
 ## Quick Start
 
 ```bash
-# List all 30 tools
+# List all 33 tools
 go run .\cmd\routerpilot tools
 
 # Ping a host
@@ -25,28 +26,40 @@ go run .\cmd\routerpilot plan dns.lookup google.com
 go run .\cmd\routerpilot serve
 
 # Start Telegram bot
-set ROUTERPILOT_TELEGRAM_TOKEN=xxx
+$env:ROUTERPILOT_TELEGRAM_TOKEN="xxx"
 go run .\cmd\routerpilot telegram
+```
+
+Or use the prebuilt binary:
+```bash
+routerpilot serve
+curl -X POST http://localhost:8080/intent \
+  -H "Content-Type: application/json" \
+  -d '{"intent":"dns.lookup","args":{"host":"google.com"}}'
 ```
 
 ---
 
 ## Architecture
 
-```text
+```
 CLI / API / WebSocket / Telegram / Web UI
            │
            ▼
      ┌─────────────┐
-     │   Planner    │  (Simple or LLM)
+     │   Planner    │  Simple (rule-based, ~30 intents) or LLM (OpenAI-compatible)
      └──────┬──────┘
             │ Plan
      ┌──────▼──────┐
-     │   Runtime   │  (DAG scheduler, retry, timeout, dry-run)
+     │    Safety   │  Risk levels, permissions, schema validation, dry-run
+     └──────┬──────┘
+            │
+     ┌──────▼──────┐
+     │   Runtime   │  DAG scheduler, adaptive re-planning, retry, timeout
      └──────┬──────┘
             │ Tasks
      ┌──────▼──────┐
-     │ Tool Registry│── 30 tools
+     │ Tool Registry│── 33 tools across 11 categories
      └──────┬──────┘
             │ Execute
      ┌──────▼──────┐
@@ -57,17 +70,71 @@ CLI / API / WebSocket / Telegram / Web UI
 
 ### Components
 
-| Component      | Responsibility                                |
-| -------------- | --------------------------------------------- |
-| Planner        | Transform intent into executable Plans        |
-| Runtime        | Execute validated Plans deterministically     |
-| Tools          | 30 individual operations                      |
-| Registry       | Discover components and capabilities          |
-| Context Engine | Build minimal planning context                |
-| Memory         | Store persistent knowledge                    |
-| Event Bus      | Publish immutable runtime events              |
-| Safety Layer   | Enforce permissions and risk policies         |
-| Plugin System  | Extend via external binaries                  |
+| Component      | Responsibility                                       |
+| -------------- | ---------------------------------------------------- |
+| Planner        | Transform intent into executable Plans               |
+| Context Engine | Gather minimal system state for adaptive re-planning |
+| Safety Guard   | Enforce risk levels, permissions, and policies       |
+| Runtime        | Execute validated Plans deterministically            |
+| Tools          | 33 individual operations (network, system, DNS, ...) |
+| Registry       | Discover components and capabilities                 |
+| Event Bus      | Publish immutable runtime events                     |
+| Memory         | Store persistent knowledge                           |
+| Knowledge Base | Rule-based diagnostics (11 patterns, no LLM needed)  |
+| Plugin System  | Extend via external binary subprocesses              |
+
+---
+
+## Entry Points
+
+### CLI
+
+| Command | Description |
+|---------|-------------|
+| `routerpilot tools` | List all registered tools |
+| `routerpilot ping <host> [count] [--events]` | Quick ping (skips planner, goes directly to runtime) |
+| `routerpilot plan <intent> [args...]` | Full intent execution via planner |
+| `routerpilot serve` | Start REST API + Web UI + WebSocket server |
+| `routerpilot telegram` | Start Telegram bot |
+
+### REST API
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/` | Web UI |
+| GET | `/api` | API info |
+| GET | `/api/config` | Get runtime config |
+| PUT | `/api/config` | Update runtime config |
+| GET | `/health` | Health check |
+| POST | `/intent` | Execute intent |
+| POST | `/plan` | Preview plan (no execution) |
+| GET | `/tools` | List tools |
+| GET | `/status` | Server status |
+| GET | `/events` | Execution events |
+| GET | `/events/stream` | SSE event stream |
+| GET | `/ws` | WebSocket |
+
+### WebSocket
+
+Connect to `ws://localhost:8080/ws`:
+
+```json
+{"intent": "ping", "args": {"target": "8.8.8.8"}}
+```
+
+Receives:
+```json
+{"type": "status", "data": "executing ping..."}
+{"type": "result", "data": {"result": {...}}}
+```
+
+### Web UI
+
+Open `http://localhost:8080/` — dark-themed SPA with console, dashboard, and settings tabs.
+
+### Telegram Bot
+
+Commands: `/ping <host>`, `/plan <intent>`, `/tools`, or any intent directly.
 
 ---
 
@@ -105,9 +172,9 @@ CLI / API / WebSocket / Telegram / Web UI
 |------|-------------|---------|
 | `system.info` | OS, kernel, hostname, arch | `routerpilot plan system.info` |
 | `system.uptime` | System uptime | `routerpilot plan system.uptime` |
-| `system.memory` | RAM usage (free/meminfo) | `routerpilot plan system.memory` |
-| `system.disk` | Disk usage (df -h) | `routerpilot plan system.disk` |
-| `system.processes` | Top processes (ps aux) | `routerpilot plan system.processes sort=mem limit=10` |
+| `system.memory` | RAM usage | `routerpilot plan system.memory` |
+| `system.disk` | Disk usage (`df -h`) | `routerpilot plan system.disk` |
+| `system.processes` | Top processes (`ps aux`) | `routerpilot plan system.processes sort=mem limit=10` |
 | `system.logs` | View logs (journalctl/logread/dmesg) | `routerpilot plan system.logs lines=100 filter=error` |
 | `system.reboot` | Reboot the system | `routerpilot plan system.reboot` |
 
@@ -148,22 +215,12 @@ CLI / API / WebSocket / Telegram / Web UI
 | `service.list` | List services | `routerpilot plan service.list` |
 | `service.restart` | Restart a service | `routerpilot plan service.restart name=dnsmasq` |
 
-### Packages
+### Packages, VPN, Bridge
 
 | Tool | Description | Example |
 |------|-------------|---------|
 | `package.list` | List installed packages | `routerpilot plan package.list` |
-
-### VPN
-
-| Tool | Description | Example |
-|------|-------------|---------|
 | `vpn.status` | Show VPN tunnels (WireGuard, OpenVPN) | `routerpilot plan vpn.status` |
-
-### Bridge
-
-| Tool | Description | Example |
-|------|-------------|---------|
 | `bridge.status` | Show bridge interfaces | `routerpilot plan bridge.status` |
 
 ### Diagnostics
@@ -171,114 +228,44 @@ CLI / API / WebSocket / Telegram / Web UI
 | Tool | Description | Example |
 |------|-------------|---------|
 | `diagnose` | Full network diagnostic (if+ip+route+ping) | `routerpilot plan diagnose target=8.8.8.8` |
-| `suggest` | Offline diagnosis with KB pattern matching | `routerpilot plan suggest problem="no internet"` |
+| `suggest` | Offline KB-based diagnosis (11 patterns) | `routerpilot plan suggest problem="no internet"` |
 
 ---
 
-## Entry Points
+## Safety
 
-### CLI
+RouterPilot's safety is **deterministic** — it never depends on LLM output.
 
-```bash
-routerpilot tools              # List all 30 tools
-routerpilot ping <host> [n]    # Quick ping (skips planner)
-routerpilot plan <intent>      # Execute via planner
-routerpilot serve              # REST API + Web UI + WebSocket
-routerpilot telegram           # Telegram bot
-```
-
-### REST API
-
-Start with `routerpilot serve`. Endpoints:
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/` | Web UI |
-| GET | `/api` | API info |
-| GET | `/health` | Health check |
-| POST | `/intent` | Execute intent |
-| POST | `/plan` | Preview plan |
-| GET | `/tools` | List tools |
-| GET | `/status` | Server status |
-| GET | `/events` | Execution events |
-| GET | `/events/stream` | SSE event stream |
-| GET | `/ws` | WebSocket |
-
-Example:
-```bash
-curl -X POST http://localhost:8080/intent \
-  -H "Content-Type: application/json" \
-  -d '{"intent":"dns.lookup","args":{"host":"google.com"}}'
-```
-
-### WebSocket
-
-Connect to `ws://localhost:8080/ws`, send JSON:
-
-```json
-{"intent": "ping", "args": {"target": "8.8.8.8"}}
-```
-
-Receives:
-```json
-{"type": "status", "data": "executing ping..."}
-{"type": "result", "data": {"result": {...}}}
-```
-
-### Web UI
-
-Open `http://localhost:8080/` in browser.  
-Includes sidebar with quick commands, input field, and output panel.
-
-### Telegram Bot
-
-```bash
-set ROUTERPILOT_TELEGRAM_TOKEN=your_bot_token
-routerpilot telegram
-```
-
-Commands:
-- `/ping <host>` — Ping a host
-- `/plan <intent>` — Execute an intent
-- `/tools` — List tools
-- `<intent>` — Execute any intent directly
+| Layer | Mechanism |
+|-------|-----------|
+| **Risk Levels** | Each tool has a risk rating: Low, Medium, High, Critical |
+| **Permissions** | Scopes: Read, Write, Admin. Configurable at startup |
+| **Schema Validation** | All tool inputs validated against declared schemas |
+| **Dry-Run Mode** | Preview execution without side effects |
+| **Read-Only Mode** | Blocks all write operations |
+| **Plan Validation** | Cycle detection, dependency resolution, risk coercion |
 
 ---
 
-## Configuration
+## Adaptive Re-Planning
 
-| Env Variable | Default | Description |
-|-------------|---------|-------------|
-| `ROUTERPILOT_PORT` | `:8080` | API server port |
-| `ROUTERPILOT_PERMISSIONS` | `read,write` | Allowed permission scopes |
-| `ROUTERPILOT_RISK` | `low` | Max allowed risk level |
-| `ROUTERPILOT_PLANNER` | `simple` | Planner type (`simple` or `llm`) |
-| `ROUTERPILOT_API_KEY` | — | API key for LLM planner |
-| `ROUTERPILOT_PLUGIN_DIR` | `plugins` | Plugin directory |
-| `ROUTERPILOT_TELEGRAM_TOKEN` | — | Telegram bot token |
-| `ROUTERPILOT_LOG_FORMAT` | `text` | Log format (`text` or `json`) |
-| `ROUTERPILOT_LOG_LEVEL` | `info` | Log level (`debug`, `info`, `warn`, `error`) |
+RouterPilot can gather system context, merge results, and re-feed to the planner for a refined plan:
+
+1. Runtime detects context-gathering tasks (read-only, no cross-dependencies)
+2. Executes them first
+3. Merges results into enriched context
+4. Re-plans with full system state
+5. Falls back to original plan after 3 retries
+
+This enables tools like `diagnose` to run a series of checks and `suggest` to apply KB pattern matching on live data — all without an LLM.
 
 ---
 
 ## Plugin System
 
-RouterPilot loads external tools as subprocess plugins.
-
-### Creating a Plugin
-
-See `examples/dns-plugin/` for a complete example.
+Plugins are standalone executables communicating via stdin/stdout JSON:
 
 ```go
-// plugins/myplugin/main.go
-package main
-
-import (
-    "encoding/json"
-    "fmt"
-    "os"
-)
-
 func main() {
     if len(os.Args) > 1 && os.Args[1] == "plugin-manifest" {
         json.NewEncoder(os.Stdout).Encode(map[string]any{
@@ -292,22 +279,49 @@ func main() {
 }
 ```
 
-Place the binary in `plugins/` (or `$ROUTERPILOT_PLUGIN_DIR`).
+Place the binary in `plugins/` (or `$ROUTERPILOT_PLUGIN_DIR`).  
+See `examples/dns-plugin/` for a complete example.
 
 ---
 
 ## OpenWrt
 
-RouterPilot targets OpenWrt as a primary platform. The Linux network provider  
-(`internal/network/linux.go`) uses JSON mode (`ip -j`) with automatic fallback  
-to text parsing for busybox `iproute2`.
+RouterPilot targets OpenWrt as a primary platform:
 
-Supported OpenWrt tools:
-- `iwinfo` / `iw` — Wi-Fi scan and status
-- `logread` — System logs
-- `/etc/init.d/` — Service management
-- `ubus` — DHCP leases
-- `opkg` — Package management
+- **Network provider** uses JSON mode (`ip -j`) with automatic fallback to text parsing for busybox `iproute2`
+- **Tools** leverage OpenWrt-native utilities: `iwinfo`/`iw`, `logread`, `/etc/init.d/`, `ubus`, `opkg`
+- **LuCI package** (`luci-app-routerpilot/`): 4 JS views, Lua controller, CBI settings, init.d script
+- **Install** via `install.sh` or as an OpenWrt package
+
+---
+
+## Configuration
+
+### File (`routerpilot.json`)
+
+```json
+{
+  "server": { "port": ":8080" },
+  "planner": { "type": "simple", "model": "gpt-4" },
+  "security": { "risk": "low", "permissions": ["read", "write"] }
+}
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ROUTERPILOT_PORT` | `:8080` | API server port |
+| `ROUTERPILOT_PERMISSIONS` | `read,write` | Allowed permission scopes |
+| `ROUTERPILOT_RISK` | `low` | Max allowed risk level |
+| `ROUTERPILOT_PLANNER` | `simple` | Planner type (`simple` or `llm`) |
+| `ROUTERPILOT_API_KEY` | — | API key for LLM planner |
+| `ROUTERPILOT_PLUGIN_DIR` | `plugins` | Plugin directory |
+| `ROUTERPILOT_TELEGRAM_TOKEN` | — | Telegram bot token |
+| `ROUTERPILOT_LOG_FORMAT` | `text` | Log format (`text` or `json`) |
+| `ROUTERPILOT_LOG_LEVEL` | `info` | Log level |
+
+Config can also be updated at runtime via `PUT /api/config`.
 
 ---
 
@@ -322,35 +336,30 @@ go test ./...
 ### Project Structure
 
 ```
-cmd/routerpilot/         # CLI entry point
+cmd/routerpilot/         # CLI entry point (5 commands)
 internal/
-  api/                   # REST API + WebSocket
-  app/                   # Application bootstrap
+  api/                   # REST API + WebSocket + SSE
+  app/                   # Application bootstrap, dynamic context
+  config/                # Config loading (JSON + env overrides)
   context/               # Context engine
-  events/                # Event bus
-  logger/                # Structured logging
-  memory/                # Memory provider
-  network/               # Linux network provider
+  events/                # In-memory event bus
+  kb/                    # Diagnostic knowledge base (11 patterns)
+  logger/                # Structured logging (slog wrapper)
+  memory/                # In-memory key-value store
+  network/               # OS network abstraction (Linux + mock)
   planner/               # Simple + LLM planner
-  plugin/                # Plugin loader
-  registry/              # Tool registry
-  runtime/               # Execution engine
-  safety/                # Safety guards
-  telegram/              # Telegram bot
-  webui/                 # Embedded Web UI
-sdk/                     # Public interfaces
-tools/
-  bridge/                # bridge.status
-  dhcp/                  # dhcp.leases
-  dns/                   # dns.lookup, dns.status, dns.flush
-  firewall/              # firewall.status, firewall.reload
-  network/               # 10 network tools
-  package/               # package.list
-  service/               # service.list, service.restart
-  system/                # 7 system tools
-  vpn/                   # vpn.status
-  wifi/                  # wifi.scan, wifi.status
-web/                     # Web UI (moved to internal/webui/)
+  plugin/                # Plugin loader (subprocess)
+  registry/              # Thread-safe tool registry
+  runtime/               # Execution engine (DAG scheduling)
+  safety/                # Safety guard + validator
+  telegram/              # Telegram bot (long-polling)
+  webui/                 # Embedded Web UI SPA
+sdk/                     # Public interfaces (tool, planner, runtime, events, memory, plugin)
+tools/                   # 33 tool implementations
+  bridge/ dhcp/ dns/ firewall/ network/ package/ service/ system/ vpn/ wifi/
+luci-app-routerpilot/    # OpenWrt LuCI integration
+examples/                # Plugin + SDK examples
+docs/                    # Architecture, safety, SDK, specs
 ```
 
 ---

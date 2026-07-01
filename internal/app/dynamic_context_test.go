@@ -8,8 +8,9 @@ import (
 
 	eventbus "github.com/shagston/routerpilot/internal/events"
 	"github.com/shagston/routerpilot/internal/registry"
-	runtimeengine "github.com/shagston/routerpilot/internal/runtime"
 	"github.com/shagston/routerpilot/internal/safety"
+	"github.com/shagston/routerpilot/runtime"
+	runtimeengine "github.com/shagston/routerpilot/runtime/engine"
 	sdkPlanner "github.com/shagston/routerpilot/sdk/planner"
 	"github.com/shagston/routerpilot/sdk/types"
 )
@@ -49,6 +50,9 @@ type sequencePlanner struct {
 	call  int
 }
 
+func (p *sequencePlanner) Name() string    { return "sequence" }
+func (p *sequencePlanner) Version() string { return "0.0.0" }
+
 func (p *sequencePlanner) Plan(context.Context, sdkPlanner.Intent, types.ContextSnapshot) (types.Plan, error) {
 	if p.call >= len(p.plans) {
 		return types.Plan{}, errors.New("no more plans")
@@ -70,13 +74,13 @@ func TestExecuteAdaptivePlanReplansAfterContextSegment(t *testing.T) {
 	}
 
 	bus := eventbus.NewBus()
-	engine := runtimeengine.NewEngine(reg, bus, runtimeengine.WithValidator(safety.NewValidator(reg, safety.Config{
+	rt := runtime.New(reg, bus, runtimeengine.WithValidator(safety.NewValidator(reg, safety.Config{
 		Permissions: []types.Permission{types.PermissionRead},
 	})))
 	app := &App{
 		Registry: reg,
 		Events:   bus,
-		Runtime:  engine,
+		Runtime:  rt,
 	}
 
 	planGen := &sequencePlanner{

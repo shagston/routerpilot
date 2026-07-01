@@ -64,6 +64,9 @@ type chatResponse struct {
 	} `json:"choices"`
 }
 
+func (p *LLMPlanner) Name() string    { return "llm" }
+func (p *LLMPlanner) Version() string { return "0.1.0" }
+
 func (p *LLMPlanner) Plan(ctx context.Context, intent planner.Intent, snapshot types.ContextSnapshot) (types.Plan, error) {
 	if p.apiKey == "" {
 		return types.Plan{}, fmt.Errorf("ROUTERPILOT_API_KEY is not set")

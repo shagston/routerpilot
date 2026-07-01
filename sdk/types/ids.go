@@ -1,6 +1,7 @@
 package types
 
 type (
+	AgentID     string
 	ExecutionID string
 	PlanID      string
 	TaskID      string

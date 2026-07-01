@@ -15,6 +15,9 @@ func NewSimplePlanner() *SimplePlanner {
 	return &SimplePlanner{}
 }
 
+func (p *SimplePlanner) Name() string    { return "simple" }
+func (p *SimplePlanner) Version() string { return "0.1.0" }
+
 func (p *SimplePlanner) Plan(ctx context.Context, intent planner.Intent, snapshot types.ContextSnapshot) (types.Plan, error) {
 	switch intent.Name {
 	case "ping":

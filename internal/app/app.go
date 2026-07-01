@@ -15,8 +15,9 @@ import (
 	"github.com/shagston/routerpilot/internal/planner"
 	pluginloader "github.com/shagston/routerpilot/internal/plugin"
 	"github.com/shagston/routerpilot/internal/registry"
-	runtimeengine "github.com/shagston/routerpilot/internal/runtime"
 	"github.com/shagston/routerpilot/internal/safety"
+	"github.com/shagston/routerpilot/runtime"
+	runtimeengine "github.com/shagston/routerpilot/runtime/engine"
 	sdkPlanner "github.com/shagston/routerpilot/sdk/planner"
 	"github.com/shagston/routerpilot/sdk/tool"
 	"github.com/shagston/routerpilot/sdk/types"
@@ -36,7 +37,7 @@ type App struct {
 	Config   *config.Config
 	Registry *registry.ToolRegistry
 	Events   *eventbus.Bus
-	Runtime  *runtimeengine.Engine
+	Runtime  *runtime.Runtime
 	Log      *logger.Logger
 }
 
@@ -106,7 +107,7 @@ func NewWithConfig(cfg *config.Config) (*App, error) {
 
 	bus := eventbus.NewBus()
 	validateCfg := parsePermissionsConfig(cfg)
-	engine := runtimeengine.NewEngine(reg, bus,
+	rt := runtime.New(reg, bus,
 		runtimeengine.WithValidator(safety.NewValidator(reg, validateCfg)),
 		runtimeengine.WithDryRun(cfg.Security.DryRun),
 		runtimeengine.WithReadOnly(cfg.Security.ReadOnly),
@@ -126,7 +127,7 @@ func NewWithConfig(cfg *config.Config) (*App, error) {
 		Config:   cfg,
 		Registry: reg,
 		Events:   bus,
-		Runtime:  engine,
+		Runtime:  rt,
 		Log:      log,
 	}, nil
 }

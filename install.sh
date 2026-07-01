@@ -73,7 +73,12 @@ install_binary() {
 	info "Downloading RouterPilot binary..."
 
 	if download "$url" "$TMPDIR/$gz_name" "RouterPilot binary ($arch)"; then
+		if ! command -v gzip >/dev/null 2>&1; then
+			err "gzip not found"
+			return 1
+		fi
 		gzip -d "$TMPDIR/$gz_name"
+		mkdir -p /usr/bin
 		cp "$TMPDIR/$binary_name" /usr/bin/routerpilot
 		chmod 0755 /usr/bin/routerpilot
 		info "Binary installed: /usr/bin/routerpilot"
@@ -178,17 +183,6 @@ install_luci() {
 		info "Lua runtime not available — using JS-only mode (menu.d)."
 	fi
 
-	for entry in $js_files; do
-		local src="${entry%%:*}"
-		local dst="${entry##*:}"
-		mkdir -p "$(dirname "$dst")"
-		local url="$BASE_URL/luci-app-routerpilot/$src"
-		if ! download "$url" "$dst" "$(basename "$dst")"; then
-			err "Failed to download $src"
-			failed=1
-		fi
-	done
-
 	chmod 0755 /etc/init.d/routerpilot 2>/dev/null || true
 	chmod 0755 /etc/uci-defaults/40_luci-routerpilot 2>/dev/null || true
 
@@ -226,11 +220,14 @@ configure() {
 	fi
 
 	info "Configuration complete."
-	info "  Edit settings:  uci set routerpilot.settings.read_only=0 && uci commit routerpilot"
+	info "  Edit settings:  uci set routerpilot.general.read_only=0 && uci commit routerpilot"
 	info "  View settings:  uci show routerpilot"
 }
 
 show_help() {
+	local lan_ip
+	lan_ip=$(uci get network.lan.ipaddr 2>/dev/null || ip -4 route show default 2>/dev/null | awk '{print $3}' || echo "192.168.1.1")
+
 	cat <<-EOF
 
 	$(info "RouterPilot installed successfully!")
@@ -240,14 +237,14 @@ show_help() {
 	  $(info "/etc/init.d/routerpilot start")
 
 	  RouterPilot will be available at:
-	    http://$(uci get network.lan.ipaddr 2>/dev/null || echo "192.168.1.1"):8080/
+	    http://${lan_ip}:8080/
 
 	  LuCI interface:
 	    Login to LuCI → Services → RouterPilot
 
 	First run (safe mode, read-only):
 	  By default, RouterPilot starts in read-only mode.
-	  To disable: uci set routerpilot.settings.read_only=0 && uci commit routerpilot && /etc/init.d/routerpilot reload
+	  To disable: uci set routerpilot.general.read_only=0 && uci commit routerpilot && /etc/init.d/routerpilot reload
 
 	Logs:
 	  logread -e routerpilot

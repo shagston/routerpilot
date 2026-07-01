@@ -1,4 +1,4 @@
-package runtime
+package engine
 
 import (
 	"context"
@@ -207,7 +207,6 @@ func (e *Engine) executeTask(ctx context.Context, execution types.Execution, tas
 		return types.ToolResult{Success: false, Error: err.Error()}, err
 	}
 
-	// Apply global read-only mode: block write/admin tools
 	if e.readOnly {
 		for _, perm := range t.Metadata().Permissions {
 			if perm == types.PermissionWrite || perm == types.PermissionAdmin {
@@ -218,7 +217,6 @@ func (e *Engine) executeTask(ctx context.Context, execution types.Execution, tas
 		}
 	}
 
-	// Apply global dry-run: skip execution for all tools, return dry-run result
 	effectiveDryRun := dryRun || e.dryRun
 	if effectiveDryRun {
 		e.publish(execution, task.ID, task.Tool, "tool.dry_run", types.SeverityInfo, map[string]any{

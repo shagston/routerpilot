@@ -16,5 +16,7 @@ type ContextProvider interface {
 }
 
 type Planner interface {
+	Name() string
+	Version() string
 	Plan(context.Context, Intent, types.ContextSnapshot) (types.Plan, error)
 }
